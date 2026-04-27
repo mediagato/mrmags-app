@@ -14,7 +14,7 @@
  * Everyone else hits the HTTP API. server/index.js no longer touches the
  * brain directly — it's a thin proxy.
  */
-const { app, Tray, Menu, dialog, shell, nativeImage, BrowserWindow } = require('electron');
+const { app, Tray, Menu, dialog, shell, nativeImage, BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -27,6 +27,8 @@ const api = require('./api');
 app.setName('Mr. Mags');
 
 let tray = null;
+let mainWindow = null;
+let widgetWindow = null;
 
 // ── paths ─────────────────────────────────────────────────────────────────
 
@@ -154,6 +156,143 @@ async function showWelcomeDialog() {
   return result.response;
 }
 
+// ── windows ───────────────────────────────────────────────────────────────
+
+function rendererPath(file) {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'app', 'renderer', file);
+  }
+  return path.join(__dirname, 'renderer', file);
+}
+
+function showMainWindow() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.show();
+    mainWindow.focus();
+    return;
+  }
+  mainWindow = new BrowserWindow({
+    width: 920,
+    height: 640,
+    minWidth: 720,
+    minHeight: 480,
+    title: 'Mr. Mags',
+    backgroundColor: '#fafaf7',
+    show: false,
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  // Hide window menu bar on Windows/Linux. Mac uses the native app menu.
+  if (process.platform !== 'darwin') mainWindow.setMenu(null);
+
+  mainWindow.loadFile(rendererPath('window.html'));
+  mainWindow.once('ready-to-show', () => mainWindow.show());
+
+  // Don't destroy on close — just hide. Re-opens fast next click.
+  mainWindow.on('close', (e) => {
+    if (!app.isQuitting) {
+      e.preventDefault();
+      mainWindow.hide();
+    }
+  });
+}
+
+function showWidget() {
+  if (widgetWindow && !widgetWindow.isDestroyed()) {
+    widgetWindow.show();
+    return;
+  }
+  // Restore last position if saved
+  const display = screen.getPrimaryDisplay();
+  const { width: sw, height: sh } = display.workAreaSize;
+  let x = sw - 320;
+  let y = sh - 220;
+  try {
+    const saved = JSON.parse(fs.readFileSync(path.join(userDataDir(), 'widget-pos.json'), 'utf8'));
+    if (Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
+      x = saved.x;
+      y = saved.y;
+    }
+  } catch {}
+
+  widgetWindow = new BrowserWindow({
+    width: 280,
+    height: 180,
+    x, y,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    skipTaskbar: true,
+    alwaysOnTop: false,
+    hasShadow: false,
+    title: 'Mr. Mags',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  widgetWindow.loadFile(rendererPath('widget.html'));
+
+  // Persist position when user drags it
+  const savePos = () => {
+    try {
+      const [wx, wy] = widgetWindow.getPosition();
+      fs.writeFileSync(
+        path.join(userDataDir(), 'widget-pos.json'),
+        JSON.stringify({ x: wx, y: wy }),
+        'utf8'
+      );
+    } catch {}
+  };
+  widgetWindow.on('moved', savePos);
+  widgetWindow.on('closed', () => { widgetWindow = null; });
+}
+
+function hideWidget() {
+  if (widgetWindow && !widgetWindow.isDestroyed()) {
+    widgetWindow.close();
+    widgetWindow = null;
+  }
+}
+
+async function applyWidgetPreference() {
+  try {
+    const row = await brain.getState('widget_enabled');
+    if (row && (row.value === 'true' || row.value === true)) {
+      showWidget();
+    }
+  } catch {}
+}
+
+// ── IPC handlers (called from renderer via preload) ──────────────────────
+
+function registerIpc() {
+  ipcMain.handle('app:version', () => app.getVersion());
+  ipcMain.handle('app:data-path', () => userDataDir());
+  ipcMain.handle('app:open-data-folder', () => shell.openPath(userDataDir()));
+  ipcMain.handle('app:open-claude-config', () => shell.showItemInFolder(claudeConfigPath()));
+  ipcMain.handle('widget:toggle', async (_, on) => {
+    if (on) showWidget(); else hideWidget();
+    try { await brain.setState?.('widget_enabled', String(!!on)); } catch {}
+    return { ok: true };
+  });
+  ipcMain.handle('widget:hide', async () => {
+    hideWidget();
+    try { await brain.setState?.('widget_enabled', 'false'); } catch {}
+    return { ok: true };
+  });
+  ipcMain.handle('app:get-autostart', () => app.getLoginItemSettings().openAtLogin);
+  ipcMain.handle('app:set-autostart', (_, on) => {
+    app.setLoginItemSettings({ openAtLogin: !!on });
+    return { ok: true };
+  });
+}
+
 // ── tray menu ─────────────────────────────────────────────────────────────
 
 function buildTrayMenu(configResult) {
@@ -166,12 +305,22 @@ function buildTrayMenu(configResult) {
     { label: status, enabled: false },
     { type: 'separator' },
     {
-      label: 'Open data folder',
-      click: () => shell.openPath(userDataDir()),
+      label: 'Open Mr. Mags…',
+      click: () => showMainWindow(),
     },
     {
-      label: 'Open Claude config',
-      click: () => shell.showItemInFolder(claudeConfigPath()),
+      label: 'Show desktop widget',
+      type: 'checkbox',
+      checked: !!(widgetWindow && !widgetWindow.isDestroyed()),
+      click: async (item) => {
+        if (item.checked) showWidget(); else hideWidget();
+        try { await brain.setState?.('widget_enabled', String(!!item.checked)); } catch {}
+      },
+    },
+    { type: 'separator' },
+    {
+      label: 'Open data folder',
+      click: () => shell.openPath(userDataDir()),
     },
     {
       label: 'How to talk to Claude (cheat sheet)',
@@ -179,29 +328,8 @@ function buildTrayMenu(configResult) {
     },
     { type: 'separator' },
     {
-      label: 'About Mr. Mags',
-      click: () => {
-        dialog.showMessageBox({
-          type: 'info',
-          title: 'About Mr. Mags',
-          message: `Mr. Mags v${app.getVersion()}`,
-          detail:
-            'A persistent memory layer for Claude Desktop. Local-first: everything you store ' +
-            'lives on this Mac and never goes to a server.\n\n' +
-            'Named for a school teacher whose students call him Mr. Mags. ' +
-            'He was the first user. We built it for him because his lesson plans, rubrics, and ' +
-            'parent emails kept evaporating into one-shot AI chats. Now Claude remembers him.\n\n' +
-            `Brain location: ${path.join(userDataDir(), 'brain')}\n` +
-            `MCP server: ${serverEntryPath()}\n\n` +
-            'Made by MEDiAGATO. Free for teachers, forever. https://mrmags.org',
-          buttons: ['OK'],
-        });
-      },
-    },
-    { type: 'separator' },
-    {
       label: 'Quit',
-      click: () => app.quit(),
+      click: () => { app.isQuitting = true; app.quit(); },
     },
   ]);
 }
@@ -241,6 +369,9 @@ app.whenReady().then(async () => {
   // Wire Claude Desktop config (idempotent on subsequent launches)
   const configResult = ensureClaudeConfig();
 
+  // Wire IPC for the renderer
+  registerIpc();
+
   // Create tray
   const iconFile = trayIconPath();
   const trayImage = iconFile ? nativeImage.createFromPath(iconFile) : nativeImage.createEmpty();
@@ -257,10 +388,19 @@ app.whenReady().then(async () => {
     tray.setTitle('Mr. Mags');
   }
 
-  // First-run welcome dialog
+  // Click on the tray icon (left-click on Win/Linux, single-click on Mac):
+  // open the main window. Right-click still shows the context menu.
+  tray.on('click', () => showMainWindow());
+  tray.on('double-click', () => showMainWindow());
+
+  // Restore widget if user had it on
+  applyWidgetPreference();
+
+  // First-run welcome dialog → main window
   if (isFirstRun()) {
     await showWelcomeDialog();
     markFirstRunDone();
+    showMainWindow();
   }
 });
 
@@ -272,7 +412,10 @@ app.on('window-all-closed', (e) => {
 });
 
 app.on('before-quit', async (e) => {
+  app.isQuitting = true;
   if (tray) { tray.destroy(); tray = null; }
+  if (widgetWindow && !widgetWindow.isDestroyed()) { widgetWindow.close(); widgetWindow = null; }
+  if (mainWindow && !mainWindow.isDestroyed()) { mainWindow.destroy(); mainWindow = null; }
   // Best-effort: close the API server and brain. Don't block quit > 2s.
   try { await Promise.race([api.stop(), new Promise(r => setTimeout(r, 1500))]); } catch {}
   try { await Promise.race([brain.close(), new Promise(r => setTimeout(r, 500))]); } catch {}

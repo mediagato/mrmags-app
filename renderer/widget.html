@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Mr. Mags Widget</title>
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=Inter:wght@400;500&display=swap");
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: transparent;
+  font-family: "Inter", system-ui, sans-serif;
+  -webkit-app-region: drag;
+  user-select: none;
+  overflow: hidden;
+}
+
+.widget {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(circle at 30% 0%, rgba(255,255,255,0.06) 0%, transparent 60%),
+    linear-gradient(135deg, #2d3a2e 0%, #1f2a20 100%);
+  border-radius: 8px;
+  border: 4px solid #5a3920;
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.35),
+    inset 0 0 40px rgba(0,0,0,0.25),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+  padding: 16px 18px 14px;
+  color: rgba(247, 246, 240, 0.94);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+}
+
+.brand {
+  font-family: "Caveat", cursive;
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 1;
+  text-shadow: 0 0 1px rgba(255,255,255,0.4), 0 1px 2px rgba(0,0,0,0.25);
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.count {
+  font-family: "Caveat", cursive;
+  font-weight: 600;
+  font-size: 56px;
+  line-height: 1;
+  text-shadow: 0 0 1px rgba(255,255,255,0.4), 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.label {
+  font-family: "Caveat", cursive;
+  font-size: 18px;
+  margin-top: 4px;
+  color: rgba(247, 246, 240, 0.7);
+}
+
+.foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: rgba(247, 246, 240, 0.5);
+}
+
+.dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #6fbf73;
+  box-shadow: 0 0 6px rgba(111,191,115,0.6);
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.close {
+  -webkit-app-region: no-drag;
+  background: transparent;
+  border: 0;
+  color: rgba(247, 246, 240, 0.5);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.close:hover { color: rgba(247, 246, 240, 0.9); }
+
+.character {
+  position: absolute;
+  bottom: -6px;
+  right: -10px;
+  height: 88px;
+  width: auto;
+  pointer-events: none;
+  opacity: 0.85;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+.error {
+  font-size: 13px;
+  color: rgba(247, 246, 240, 0.6);
+  font-style: italic;
+}
+</style>
+</head>
+<body>
+
+<div class="widget">
+  <div class="brand">Mr. Mags</div>
+  <div class="body">
+    <div class="count" id="count">—</div>
+    <div class="label" id="label">memories</div>
+  </div>
+  <div class="foot">
+    <span><span class="dot" id="dot"></span><span id="status">listening</span></span>
+    <button class="close" id="hide" title="Hide widget">×</button>
+  </div>
+  <img class="character" src="../icon/mags-avatar.png" alt="" aria-hidden="true" />
+</div>
+
+<script>
+const API = 'http://127.0.0.1:11436';
+
+async function tick() {
+  try {
+    const r = await fetch(`${API}/health`);
+    const h = await r.json();
+    document.getElementById('count').textContent = h.memory_count ?? 0;
+    document.getElementById('label').textContent =
+      (h.memory_count === 1) ? 'memory' : 'memories';
+    document.getElementById('dot').style.background = '#6fbf73';
+    document.getElementById('status').textContent = 'listening';
+  } catch {
+    document.getElementById('count').textContent = '—';
+    document.getElementById('dot').style.background = '#c45a3d';
+    document.getElementById('status').textContent = 'sleeping';
+  }
+}
+tick();
+setInterval(tick, 6000);
+
+document.getElementById('hide').addEventListener('click', () => {
+  window.mrmags?.hideWidget?.();
+});
+</script>
+
+</body>
+</html>

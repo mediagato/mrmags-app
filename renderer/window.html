@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mr. Mags</title>
+<link rel="stylesheet" href="window.css" />
+</head>
+<body class="board">
+
+<aside class="rail">
+  <div class="rail-brand">
+    <span class="brand-mark">Mr. Mags</span>
+    <span class="brand-sub" id="brand-version">v—</span>
+  </div>
+  <nav class="rail-nav">
+    <a href="#howto" class="rail-link" data-tab="howto">How to talk to me</a>
+    <a href="#memories" class="rail-link" data-tab="memories">What I remember</a>
+    <a href="#settings" class="rail-link" data-tab="settings">Settings</a>
+    <a href="#about" class="rail-link" data-tab="about">About</a>
+  </nav>
+  <div class="rail-foot">
+    <span class="dot" id="status-dot"></span>
+    <span id="status-text">checking…</span>
+  </div>
+</aside>
+
+<main class="stage">
+
+  <!-- HOW TO -->
+  <section class="panel" id="panel-howto" hidden>
+    <header class="panel-head">
+      <span class="kicker">Cheat sheet</span>
+      <h1>How to talk to me.</h1>
+      <p class="lede">Six phrases that get the most out of Mr. Mags. Say them naturally — Claude does the rest.</p>
+    </header>
+    <ol class="phrase-list">
+      <li>
+        <span class="phrase">"Remember that I &lt;fact about you or your work&gt;."</span>
+        <span class="note">Files it away. Comes back next chat.</span>
+      </li>
+      <li>
+        <span class="phrase">"What do you know about my &lt;students / clients / project&gt;?"</span>
+        <span class="note">Recalls everything tagged to that topic.</span>
+      </li>
+      <li>
+        <span class="phrase">"Use my usual rubric / template / format."</span>
+        <span class="note">Pulls a saved pattern, reuses it verbatim.</span>
+      </li>
+      <li>
+        <span class="phrase">"Save this as my &lt;name&gt; pattern."</span>
+        <span class="note">Stores the current output as a reusable template.</span>
+      </li>
+      <li>
+        <span class="phrase">"Forget what I said about &lt;topic&gt;."</span>
+        <span class="note">Removes that memory. Done.</span>
+      </li>
+      <li>
+        <span class="phrase">"What's in my brain?"</span>
+        <span class="note">Lists everything I'm holding onto.</span>
+      </li>
+    </ol>
+    <p class="aside-line">
+      None of this leaves your machine. Your memory file lives at
+      <code id="howto-data-path">~/Library/Application Support/Mr. Mags/brain</code>.
+    </p>
+  </section>
+
+  <!-- MEMORIES -->
+  <section class="panel" id="panel-memories" hidden>
+    <header class="panel-head">
+      <span class="kicker">Notebook</span>
+      <h1>What I remember.</h1>
+      <p class="lede">Everything I'm holding onto. Click any entry to see the full text.</p>
+    </header>
+    <div class="memories-toolbar">
+      <input type="search" id="mem-search" placeholder="Filter…" />
+      <span class="memories-count" id="mem-count">—</span>
+      <button class="btn-light" id="mem-refresh">Refresh</button>
+    </div>
+    <ul class="memories-list" id="memories-list"></ul>
+    <div class="memories-empty" id="memories-empty" hidden>
+      <p>Nothing saved yet. Tell Claude to remember something and it'll show up here.</p>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="panel" id="panel-settings" hidden>
+    <header class="panel-head">
+      <span class="kicker">Settings</span>
+      <h1>The dials.</h1>
+      <p class="lede">Tweak how visible Mr. Mags is. Defaults are intentionally quiet.</p>
+    </header>
+
+    <div class="setting-row">
+      <div>
+        <h3>Desktop chalkboard widget</h3>
+        <p>A small chalkboard panel pinned to your desktop. Shows what I'm holding onto so you can feel the memory growing. Off by default.</p>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="setting-widget" />
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <h3>Launch on login</h3>
+        <p>Open Mr. Mags automatically when this computer starts. Recommended — Claude can't read memories I'm not running.</p>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="setting-autostart" />
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <h3>Data folder</h3>
+        <p id="setting-data-path">—</p>
+      </div>
+      <button class="btn-light" id="open-data">Open</button>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <h3>Claude Desktop config</h3>
+        <p>The MCP entry that wires Mr. Mags into Claude. We re-write this on every launch (idempotent).</p>
+      </div>
+      <button class="btn-light" id="open-claude-cfg">Open</button>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section class="panel" id="panel-about" hidden>
+    <header class="panel-head">
+      <span class="kicker">About</span>
+      <h1>Named for the teacher who inspired it.</h1>
+    </header>
+    <div class="about-body">
+      <p>
+        Mr. Mags is named for a school teacher whose students call him Mr. Mags. He was the first user.
+        We built it for him because his lesson plans, rubrics, and parent emails kept evaporating into
+        one-shot AI chats that forgot him the moment he opened a new conversation.
+      </p>
+      <p>
+        Now Claude remembers. Every conversation carries the context of every previous one.
+      </p>
+      <p class="aside-line">
+        Everything you tell Mr. Mags lives on your machine. There is no cloud, no account, no server-side
+        database with your name on it. The promise isn't "we won't read your data" — it's that we can't,
+        because we don't have it.
+      </p>
+      <p class="meta">
+        Mr. Mags <span id="about-version">v—</span> · made by MEDiAGATO ·
+        <a href="#" data-extlink="https://mrmags.org">mrmags.org</a> ·
+        <a href="#" data-extlink="mailto:hello@mrmags.org">hello@mrmags.org</a>
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<!-- Mr. Mags character watching from the corner. Pure CSS positioning. -->
+<img class="mags-corner" src="../icon/mags-character.png" alt="" aria-hidden="true" />
+
+<!-- Memory detail modal -->
+<div class="modal" id="mem-modal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-card">
+    <button class="modal-close" data-close aria-label="Close">×</button>
+    <h2 id="mem-modal-title">—</h2>
+    <pre id="mem-modal-body"></pre>
+    <p class="modal-meta" id="mem-modal-meta">—</p>
+    <div class="modal-actions">
+      <button class="btn-danger" id="mem-delete">Forget this</button>
+    </div>
+  </div>
+</div>
+
+<script src="window.js"></script>
+</body>
+</html>

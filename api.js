@@ -60,15 +60,18 @@ async function readJsonBody(req) {
 
 // ── route handlers ────────────────────────────────────────────────────────
 
-const APP_VERSION = '0.1.0';
+const APP_VERSION = '0.2.0';
 
 async function handleHealth(req, res) {
+  let memory_count = 0;
+  try { memory_count = (await brain.getAllMemories()).length; } catch {}
   ok(res, {
     ok: true,
     name: 'mrmags',
     version: APP_VERSION,
     dbPath: brain.dbPath(),
     seededAt: await brain.isSeeded(),
+    memory_count,
   });
 }
 

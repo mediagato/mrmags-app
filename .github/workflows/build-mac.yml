@@ -3,10 +3,9 @@ name: Build Installers (Mac + Windows)
 on:
   push:
     branches: [main]
+    tags: ['v*']
     paths-ignore: ['README.md', '**/*.md']
   workflow_dispatch:
-  release:
-    types: [published]
 
 permissions:
   contents: write  # needed when uploading to a release
@@ -39,10 +38,12 @@ jobs:
           if-no-files-found: error
           retention-days: 30
       - name: Attach to GitHub Release
-        if: github.event_name == 'release'
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*.dmg
+          fail_on_unmatched_files: false
+          generate_release_notes: true
 
   build-windows:
     runs-on: windows-latest
@@ -70,7 +71,9 @@ jobs:
           if-no-files-found: error
           retention-days: 30
       - name: Attach to GitHub Release
-        if: github.event_name == 'release'
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*.exe
+          fail_on_unmatched_files: false
+          generate_release_notes: true
