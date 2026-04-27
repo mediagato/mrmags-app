@@ -44,6 +44,23 @@ jobs:
           files: dist/*.dmg
           fail_on_unmatched_files: false
           generate_release_notes: true
+      - name: Publish to cdn.mrmags.org (R2)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # Upload the universal DMG with a versionless filename (per the
+          # MEDiAGATO installer-filename rule). Branded URL is the public path:
+          #   https://cdn.mrmags.org/Mr-Mags.dmg → always the latest tagged build.
+          DMG=$(ls dist/*.dmg | head -1)
+          npx wrangler@latest r2 object put mrmags-cdn/Mr-Mags.dmg \
+            --file "$DMG" --content-type application/x-apple-diskimage --remote
+          # Also keep a versioned copy so old releases stay fetchable
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          npx wrangler@latest r2 object put "mrmags-cdn/versions/Mr-Mags-${VERSION}.dmg" \
+            --file "$DMG" --content-type application/x-apple-diskimage --remote
 
   build-windows:
     runs-on: windows-latest
@@ -77,3 +94,17 @@ jobs:
           files: dist/*.exe
           fail_on_unmatched_files: false
           generate_release_notes: true
+      - name: Publish to cdn.mrmags.org (R2)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          EXE=$(ls dist/*.exe | head -1)
+          npx wrangler@latest r2 object put mrmags-cdn/Mr-Mags-Setup.exe \
+            --file "$EXE" --content-type application/x-msdownload --remote
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          npx wrangler@latest r2 object put "mrmags-cdn/versions/Mr-Mags-Setup-${VERSION}.exe" \
+            --file "$EXE" --content-type application/x-msdownload --remote
