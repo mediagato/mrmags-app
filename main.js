@@ -87,10 +87,18 @@ function ensureClaudeConfig() {
     }
   }
 
+  // Self-contained: spawn our own Electron binary in Node mode. Electron
+  // ships with Node bundled, so the user doesn't need Node installed
+  // separately. process.execPath is the path to the Mr. Mags executable
+  // inside the .app/.exe. ELECTRON_RUN_AS_NODE=1 turns it into a Node
+  // interpreter that runs the server script.
   const desired = {
-    command: 'node',
+    command: process.execPath,
     args: [serverEntryPath()],
-    env: { MRMAGS_DATA_DIR: userDataDir() },
+    env: {
+      ELECTRON_RUN_AS_NODE: '1',
+      MRMAGS_DATA_DIR: userDataDir(),
+    },
   };
 
   // Idempotent — only write if our entry is missing or different
@@ -131,12 +139,18 @@ async function showWelcomeDialog() {
       'with Claude carries the context of every previous one.\n\n' +
       'Try saying:  "Remember that I teach biology."\n' +
       'Or:          "What do you know about my classes?"\n\n' +
-      'Your data lives on this Mac and never leaves it. I sit in the menu bar — click me ' +
-      'anytime to see status or open your data folder.\n\n' +
-      'If Claude Desktop is already open, quit and reopen it once so it sees the new memory tool.',
-    buttons: ['Got it'],
+      'Your data lives on this machine and never leaves it. I sit in the menu bar (Mac) or ' +
+      'system tray (Windows) — click me anytime to see status or open your data folder.\n\n' +
+      'If Claude Desktop is already open, please quit and reopen it once so it picks up the ' +
+      'new memory tool.\n\n' +
+      'For a one-page guide: https://mrmags.org/start',
+    buttons: ['Got it', 'Open the guide'],
     defaultId: 0,
+    cancelId: 0,
   });
+  if (result.response === 1) {
+    shell.openExternal('https://mrmags.org/start');
+  }
   return result.response;
 }
 
@@ -158,6 +172,10 @@ function buildTrayMenu(configResult) {
     {
       label: 'Open Claude config',
       click: () => shell.showItemInFolder(claudeConfigPath()),
+    },
+    {
+      label: 'How to talk to Claude (cheat sheet)',
+      click: () => shell.openExternal('https://mrmags.org/start'),
     },
     { type: 'separator' },
     {

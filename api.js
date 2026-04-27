@@ -30,7 +30,7 @@ function send(res, status, body) {
     'content-type': 'application/json; charset=utf-8',
     'access-control-allow-origin': '*',
     'access-control-allow-headers': 'content-type',
-    'access-control-allow-methods': 'GET, POST, OPTIONS',
+    'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
     'cache-control': 'no-store',
   });
   res.end(text);
@@ -91,6 +91,14 @@ async function handleSaveMemory(req, res) {
   if (typeof content !== 'string') return bad(res, 'content required (string)');
   await brain.setMemory(filename, content, body.updatedBy || 'http', layer || 'instance');
   ok(res, { saved: filename, length: content.length });
+}
+
+async function handleDeleteMemory(req, res, filename) {
+  const fn = decodeURIComponent(filename);
+  const existing = await brain.getMemory(fn);
+  if (!existing) return notFound(res, 'memory not found');
+  await brain.deleteMemory(fn);
+  ok(res, { deleted: fn });
 }
 
 async function handleListState(req, res) {
@@ -171,7 +179,7 @@ async function route(req, res) {
     res.writeHead(204, {
       'access-control-allow-origin': '*',
       'access-control-allow-headers': 'content-type',
-      'access-control-allow-methods': 'GET, POST, OPTIONS',
+      'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
     });
     return res.end();
   }
@@ -182,9 +190,10 @@ async function route(req, res) {
 
   if (method === 'GET' && p === '/health') return handleHealth(req, res);
 
-  if (method === 'GET'  && p === '/memories')                return handleListMemories(req, res);
-  if (method === 'POST' && p === '/memory')                  return handleSaveMemory(req, res);
-  if (method === 'GET'  && p.startsWith('/memory/'))         return handleGetMemory(req, res, p.slice('/memory/'.length));
+  if (method === 'GET'    && p === '/memories')                return handleListMemories(req, res);
+  if (method === 'POST'   && p === '/memory')                  return handleSaveMemory(req, res);
+  if (method === 'GET'    && p.startsWith('/memory/'))         return handleGetMemory(req, res, p.slice('/memory/'.length));
+  if (method === 'DELETE' && p.startsWith('/memory/'))         return handleDeleteMemory(req, res, p.slice('/memory/'.length));
 
   if (method === 'GET'  && p === '/state')                   return handleListState(req, res);
   if (method === 'POST' && p === '/state')                   return bad(res, 'POST /state/<key> instead');

@@ -49,6 +49,15 @@ async function brainPost(pathAndQuery, body) {
   return r.json();
 }
 
+async function brainDelete(pathAndQuery) {
+  const r = await fetch(`${API_BASE}${pathAndQuery}`, { method: 'DELETE' });
+  if (!r.ok) {
+    const txt = await r.text().catch(() => '');
+    throw new Error(`HTTP ${r.status} on DELETE ${pathAndQuery}: ${txt}`);
+  }
+  return r.json();
+}
+
 const APP_NOT_RUNNING_HINT =
   'Mr. Mags isn\'t running. Open Mr. Mags from your Applications folder ' +
   'so the brain is reachable, then try again.';
@@ -126,6 +135,17 @@ const TOOLS = [
     inputSchema: { type: 'object', properties: {} },
   },
   {
+    name: 'memory_delete',
+    description:
+      'Delete a memory by filename. Use this when the user says "forget X" or "delete my note about Y". ' +
+      'Idempotent — deleting something that doesn\'t exist is a no-op (no error).',
+    inputSchema: {
+      type: 'object',
+      properties: { filename: { type: 'string' } },
+      required: ['filename'],
+    },
+  },
+  {
     name: 'seed_pack',
     description:
       'Pull a profession-specific pattern pack and seed the brain with template memories. ' +
@@ -137,6 +157,14 @@ const TOOLS = [
       },
       required: ['pack'],
     },
+  },
+  {
+    name: 'mrmags_status',
+    description:
+      'Run a quick self-check on Mr. Mags. Reports whether the local brain is reachable, where the data lives, ' +
+      'how many memories + state entries are stored, and whether the spore pack has been seeded. ' +
+      'Use this when the user asks "is Mr. Mags working?" or "can you remember things?" or "is your memory on?"',
+    inputSchema: { type: 'object', properties: {} },
   },
 ];
 
@@ -190,12 +218,37 @@ async function handleCall(name, args) {
         return ok(`${all.length} state entries:\n${lines.join('\n')}`);
       } catch (e) { return wrapNetErr(e, 'state_list'); }
     }
+    case 'memory_delete': {
+      try {
+        const r = await brainDelete(`/memory/${encodeURIComponent(args.filename)}`);
+        return ok(`Forgot "${args.filename}".`);
+      } catch (e) {
+        if (/HTTP 404/.test(e.message)) return ok(`Nothing to forget — no memory named "${args.filename}".`);
+        return wrapNetErr(e, 'memory_delete');
+      }
+    }
     case 'seed_pack': {
       try {
         const r = await brainPost('/spore/seed', { pack: args.pack || 'teacher' });
         const verb = (r.addedMemories + r.addedState) > 0 ? 'seeded' : 're-seeded (idempotent — nothing new)';
         return ok(`Pack "${r.pack}" ${verb}. ${r.addedMemories} memories + ${r.addedState} state added.`);
       } catch (e) { return wrapNetErr(e, 'seed_pack'); }
+    }
+    case 'mrmags_status': {
+      try {
+        const h = await brainGet('/health');
+        const memCount = (await brainGet('/memories')).length;
+        const stateCount = (await brainGet('/state')).length;
+        const lines = [
+          `Mr. Mags: ✓ running`,
+          `Brain: ✓ open at ${h.dbPath}`,
+          `Memories: ${memCount}`,
+          `State entries: ${stateCount}`,
+          `Profession pack: ${h.seededAt ? `seeded ${h.seededAt}` : 'not seeded yet'}`,
+          `Version: v${h.version}`,
+        ];
+        return ok(lines.join('\n'));
+      } catch (e) { return wrapNetErr(e, 'mrmags_status'); }
     }
     default:
       return err(`Unknown tool: ${name}`);
