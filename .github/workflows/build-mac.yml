@@ -1,4 +1,4 @@
-name: Build Mac DMG
+name: Build Installers (Mac + Windows)
 
 on:
   push:
@@ -12,40 +12,65 @@ permissions:
   contents: write  # needed when uploading to a release
 
 jobs:
-  build:
+
+  build-mac:
     runs-on: macos-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
-
       - name: Install dependencies
         run: npm ci || npm install
-
-      - name: Build .dmg (unsigned, for v0)
+      - name: Build universal .dmg (arm64 + x64)
         env:
-          # Skip code signing for v0 — Mags right-clicks → Open the first time.
+          # Skip code signing for v0 — users right-click → Open the first time.
           # When Apple Developer Program enrollment lands, populate CSC_LINK +
           # CSC_KEY_PASSWORD as repo secrets and electron-builder picks them up.
           CSC_IDENTITY_AUTO_DISCOVERY: false
         run: npm run build:mac
-
-      - name: Surface the artifact name
-        run: ls -la dist/
-
+      - run: ls -la dist/
       - uses: actions/upload-artifact@v4
         with:
           name: mrmags-mac-dmg
           path: dist/*.dmg
           if-no-files-found: error
           retention-days: 30
-
       - name: Attach to GitHub Release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*.dmg
+
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci || npm install
+      - name: Build NSIS .exe
+        env:
+          # Same — skip win signing for v0. SmartScreen warning the first time;
+          # user clicks "More info → Run anyway." Code-signing wires in later.
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: npm run build:win
+      - run: dir dist
+        shell: cmd
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mrmags-windows-exe
+          path: dist/*.exe
+          if-no-files-found: error
+          retention-days: 30
+      - name: Attach to GitHub Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.exe
