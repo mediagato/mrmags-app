@@ -1,21 +1,25 @@
 /**
  * Mr. Mags — main process.  https://mrmags.org
  *
- * Lives in the menu bar (Mac) / system tray (Win/Linux). Does three things:
+ * Lives in the menu bar (Mac) / system tray (Win/Linux). Owns the brain.
  *
- *   1. On first launch, writes Claude Desktop's MCP config to spawn our
- *      bundled mrmags-server, then shows a one-time welcome dialog.
- *   2. Stays running so the user has a status indicator. (The MCP server
- *      itself is spawned by Claude Desktop, not us.)
- *   3. Provides a small menu: Open data folder, About, Quit.
+ *   1. On launch: opens the @mediagato/brain (PGlite) and starts an HTTP
+ *      API server on 127.0.0.1:11436 so multiple front doors share one brain
+ *      (Claude Desktop's MCP relay, browser extension, future tools).
+ *   2. On first launch only: writes Claude Desktop's MCP config to spawn
+ *      server/index.js (the MCP→HTTP relay), then shows a welcome dialog.
+ *   3. Provides a small tray menu: Open data folder, About, Quit.
  *
- * The Electron process does NOT touch the brain database. PGlite is single-
- * writer; the MCP server has exclusive access.
+ * Single-writer guarantee: only the Electron main process opens PGlite.
+ * Everyone else hits the HTTP API. server/index.js no longer touches the
+ * brain directly — it's a thin proxy.
  */
 const { app, Tray, Menu, dialog, shell, nativeImage, BrowserWindow } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const brain = require('@mediagato/brain');
+const api = require('./api');
 
 // Force Electron's user-data dir to land at "Mr. Mags" instead of the
 // package name "mrmags-app". Must happen before any app.getPath('userData')
@@ -190,6 +194,32 @@ app.whenReady().then(async () => {
   // Hide the dock icon on Mac — we're a menu-bar-only app.
   if (process.platform === 'darwin' && app.dock) app.dock.hide();
 
+  // Open the brain (PGlite). This process holds the only writer.
+  try {
+    await brain.init(userDataDir());
+  } catch (e) {
+    dialog.showErrorBox('Mr. Mags — brain failed to open', String(e.stack || e.message));
+    app.quit();
+    return;
+  }
+
+  // Start the localhost HTTP API. Front doors (Claude Desktop's MCP relay,
+  // browser extension, future tools) all hit 127.0.0.1:11436 to share state.
+  try {
+    await api.start();
+  } catch (e) {
+    if (e.code === 'EADDRINUSE') {
+      dialog.showErrorBox(
+        'Mr. Mags — port 11436 already in use',
+        'Another Mr. Mags instance may already be running. Quit it first, then relaunch.'
+      );
+    } else {
+      dialog.showErrorBox('Mr. Mags — API server failed to start', String(e.stack || e.message));
+    }
+    app.quit();
+    return;
+  }
+
   // Wire Claude Desktop config (idempotent on subsequent launches)
   const configResult = ensureClaudeConfig();
 
@@ -223,6 +253,9 @@ app.on('window-all-closed', (e) => {
   e.preventDefault();
 });
 
-app.on('before-quit', () => {
+app.on('before-quit', async (e) => {
   if (tray) { tray.destroy(); tray = null; }
+  // Best-effort: close the API server and brain. Don't block quit > 2s.
+  try { await Promise.race([api.stop(), new Promise(r => setTimeout(r, 1500))]); } catch {}
+  try { await Promise.race([brain.close(), new Promise(r => setTimeout(r, 500))]); } catch {}
 });

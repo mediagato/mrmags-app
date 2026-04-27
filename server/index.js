@@ -1,23 +1,18 @@
 #!/usr/bin/env node
 /**
- * Mr. Mags — MCP server. Gives Claude Desktop a persistent local memory.
+ * Mr. Mags — MCP server (thin HTTP relay).  https://mrmags.org
  *
- * https://mrmags.org — free for teachers forever.
+ * Spawned by Claude Desktop via stdio. Does NOT touch the brain database
+ * directly — translates each MCP tool call into an HTTP request to the
+ * Mr. Mags Electron app's localhost API (127.0.0.1:11436).
  *
- * Spawned by Claude Desktop via stdio. Connects to a local @mediagato/brain
- * (PGlite) database at the user's data dir. Exposes 7 tools:
+ * The Electron app must be running. If it isn't, every tool call returns a
+ * helpful error pointing the user to open Mr. Mags from /Applications.
  *
- *   memory_save / memory_recall / memory_list — long-form notes by filename
- *   state_set   / state_get     / state_list   — simple key/value config
- *   seed_pack                                  — one-time pull of a profession
- *                                                 pack from the spore catalog
- *
- * Data location:
- *   Mac:     ~/Library/Application Support/Mr. Mags/brain/
- *   Windows: %APPDATA%/Mr. Mags/brain/
- *   Linux:   ~/.local/share/Mr. Mags/brain/
- *
- * Spore seed catalog (pattern packs): https://app.modelreins.com/saas/spore/seed?pack=<id>
+ * Why this layer exists at all (and isn't just direct HTTP from Claude):
+ * Claude Desktop only knows MCP. The MCP SDK + stdio transport is what it
+ * spawns. This file is the protocol bridge — it accepts MCP, speaks HTTP.
+ * Same brain serves Claude Desktop, the browser extension, future tools.
  */
 const { Server } = require('@modelcontextprotocol/sdk/server/index.js');
 const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
@@ -25,34 +20,51 @@ const {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } = require('@modelcontextprotocol/sdk/types.js');
-const brain = require('@mediagato/brain');
-const os = require('os');
-const path = require('path');
-const fs = require('fs');
 
-// ── data dir resolution ───────────────────────────────────────────────────
+const API_BASE = process.env.MRMAGS_API_BASE || 'http://127.0.0.1:11436';
 
-const APP_NAME = 'Mr. Mags';
+function log(...args) { process.stderr.write(`[mrmags-relay] ${args.join(' ')}\n`); }
 
-function defaultDataDir() {
-  const platform = process.platform;
-  const home = os.homedir();
-  if (platform === 'darwin') {
-    return path.join(home, 'Library', 'Application Support', APP_NAME);
+// ── HTTP helpers ──────────────────────────────────────────────────────────
+
+async function brainGet(pathAndQuery) {
+  const r = await fetch(`${API_BASE}${pathAndQuery}`);
+  if (!r.ok) {
+    const txt = await r.text().catch(() => '');
+    throw new Error(`HTTP ${r.status} on GET ${pathAndQuery}: ${txt}`);
   }
-  if (platform === 'win32') {
-    return path.join(process.env.APPDATA || home, APP_NAME);
-  }
-  return path.join(process.env.XDG_DATA_HOME || path.join(home, '.local', 'share'), APP_NAME);
+  return r.json();
 }
 
-const DATA_DIR = process.env.MRMAGS_DATA_DIR || defaultDataDir();
-const SPORE_BASE = process.env.MRMAGS_SPORE_BASE || 'https://app.modelreins.com';
+async function brainPost(pathAndQuery, body) {
+  const r = await fetch(`${API_BASE}${pathAndQuery}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body || {}),
+  });
+  if (!r.ok) {
+    const txt = await r.text().catch(() => '');
+    throw new Error(`HTTP ${r.status} on POST ${pathAndQuery}: ${txt}`);
+  }
+  return r.json();
+}
 
-// stderr-only logging so we don't pollute stdio MCP transport
-function log(...args) { process.stderr.write(`[mrmags-server] ${args.join(' ')}\n`); }
+const APP_NOT_RUNNING_HINT =
+  'Mr. Mags isn\'t running. Open Mr. Mags from your Applications folder ' +
+  'so the brain is reachable, then try again.';
 
-// ── tool definitions ──────────────────────────────────────────────────────
+function ok(text) { return { content: [{ type: 'text', text }] }; }
+function err(text) { return { content: [{ type: 'text', text }], isError: true }; }
+
+function wrapNetErr(e, op) {
+  const code = e && e.cause && e.cause.code;
+  if (code === 'ECONNREFUSED' || code === 'ENOTFOUND' || code === 'ETIMEDOUT') {
+    return err(APP_NOT_RUNNING_HINT);
+  }
+  return err(`${op} failed: ${e.message}`);
+}
+
+// ── tool definitions (unchanged contract — only the impl is now HTTP) ─────
 
 const TOOLS = [
   {
@@ -63,8 +75,8 @@ const TOOLS = [
     inputSchema: {
       type: 'object',
       properties: {
-        filename: { type: 'string', description: 'Slug filename, including extension. Use markdown by default.' },
-        content: { type: 'string', description: 'The full memory content. Markdown is fine.' },
+        filename: { type: 'string' },
+        content: { type: 'string' },
       },
       required: ['filename', 'content'],
     },
@@ -116,13 +128,12 @@ const TOOLS = [
   {
     name: 'seed_pack',
     description:
-      'Pull a profession-specific pattern pack from the catalog and seed the brain with template memories. ' +
-      'Available packs include: teacher. Idempotent — running it twice does not duplicate or overwrite the user\'s edits. ' +
-      'Use this on first use, when the user identifies their profession.',
+      'Pull a profession-specific pattern pack and seed the brain with template memories. ' +
+      'Available packs include: teacher. Idempotent — running twice does not duplicate or overwrite the user\'s edits.',
     inputSchema: {
       type: 'object',
       properties: {
-        pack: { type: 'string', enum: ['teacher'], description: 'Pack ID. Currently only "teacher" is supported.' },
+        pack: { type: 'string', enum: ['teacher'] },
       },
       required: ['pack'],
     },
@@ -131,72 +142,60 @@ const TOOLS = [
 
 // ── tool dispatch ─────────────────────────────────────────────────────────
 
-function ok(text) { return { content: [{ type: 'text', text }] }; }
-function err(text) { return { content: [{ type: 'text', text }], isError: true }; }
-
 async function handleCall(name, args) {
   switch (name) {
     case 'memory_save': {
-      await brain.setMemory(args.filename, args.content, 'claude');
-      return ok(`Saved memory: ${args.filename} (${args.content.length} chars).`);
+      try {
+        const r = await brainPost('/memory', { filename: args.filename, content: args.content, updatedBy: 'claude' });
+        return ok(`Saved memory: ${r.saved} (${r.length} chars).`);
+      } catch (e) { return wrapNetErr(e, 'memory_save'); }
     }
     case 'memory_recall': {
-      const row = await brain.getMemory(args.filename);
-      if (!row) return ok(`No memory found for "${args.filename}".`);
-      return ok(row.content);
+      try {
+        const r = await brainGet(`/memory/${encodeURIComponent(args.filename)}`);
+        return ok(r.content);
+      } catch (e) {
+        if (/HTTP 404/.test(e.message)) return ok(`No memory found for "${args.filename}".`);
+        return wrapNetErr(e, 'memory_recall');
+      }
     }
     case 'memory_list': {
-      const all = await brain.getAllMemories();
-      if (all.length === 0) return ok('No memories saved yet.');
-      const lines = all.map(m => `- ${m.filename} (${m.layer}, updated ${m.updated_at})`);
-      return ok(`${all.length} memories:\n${lines.join('\n')}`);
+      try {
+        const all = await brainGet('/memories');
+        if (all.length === 0) return ok('No memories saved yet.');
+        const lines = all.map((m) => `- ${m.filename} (${m.layer}, updated ${m.updated_at})`);
+        return ok(`${all.length} memories:\n${lines.join('\n')}`);
+      } catch (e) { return wrapNetErr(e, 'memory_list'); }
     }
     case 'state_set': {
-      await brain.setState(args.key, args.value, 'claude');
-      return ok(`Set state ${args.key} = ${args.value}.`);
+      try {
+        await brainPost(`/state/${encodeURIComponent(args.key)}`, { value: args.value, updatedBy: 'claude' });
+        return ok(`Set state ${args.key} = ${args.value}.`);
+      } catch (e) { return wrapNetErr(e, 'state_set'); }
     }
     case 'state_get': {
-      const row = await brain.getState(args.key);
-      if (!row) return ok(`No state for key "${args.key}".`);
-      return ok(`${args.key} = ${row.value} (${row.layer}, updated ${row.updated_at})`);
+      try {
+        const r = await brainGet(`/state/${encodeURIComponent(args.key)}`);
+        return ok(`${args.key} = ${r.value} (${r.layer}, updated ${r.updated_at})`);
+      } catch (e) {
+        if (/HTTP 404/.test(e.message)) return ok(`No state for key "${args.key}".`);
+        return wrapNetErr(e, 'state_get');
+      }
     }
     case 'state_list': {
-      const all = await brain.getAllState();
-      if (all.length === 0) return ok('No state set yet.');
-      const lines = all.map(s => `- ${s.key} = ${s.value} (${s.layer})`);
-      return ok(`${all.length} state entries:\n${lines.join('\n')}`);
+      try {
+        const all = await brainGet('/state');
+        if (all.length === 0) return ok('No state set yet.');
+        const lines = all.map((s) => `- ${s.key} = ${s.value} (${s.layer})`);
+        return ok(`${all.length} state entries:\n${lines.join('\n')}`);
+      } catch (e) { return wrapNetErr(e, 'state_list'); }
     }
     case 'seed_pack': {
-      const pack = args.pack || 'teacher';
-      const url = `${SPORE_BASE}/saas/spore/seed?pack=${encodeURIComponent(pack)}`;
-
-      // Check if already seeded — idempotent message
-      const already = await brain.isSeeded();
-      const beforeCount = (await brain.getAllMemories()).length + (await brain.getAllState()).length;
-
-      let payload;
       try {
-        // Try remote catalog first
-        const res = await fetch(url, { headers: { 'accept': 'application/json' } });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        payload = await res.json();
-      } catch (e) {
-        // Fallback: bundled pack (shipped inside the app)
-        const bundled = path.join(__dirname, '..', 'packs', `${pack}.yaml`);
-        if (!fs.existsSync(bundled)) {
-          return err(`Could not fetch pack "${pack}" from ${url} (${e.message}) and no bundled fallback at ${bundled}.`);
-        }
-        const yaml = require('yaml');
-        payload = yaml.parse(fs.readFileSync(bundled, 'utf8'));
-        log(`fell back to bundled pack: ${bundled}`);
-      }
-
-      const count = await brain.seedFromSpore(payload);
-      const afterCount = (await brain.getAllMemories()).length + (await brain.getAllState()).length;
-      const added = afterCount - beforeCount;
-
-      const verb = already ? 're-seeded (idempotent — only new templates added)' : 'seeded';
-      return ok(`Pack "${pack}" ${verb}. ${added} new template(s) added. Total memories+state: ${afterCount}.`);
+        const r = await brainPost('/spore/seed', { pack: args.pack || 'teacher' });
+        const verb = (r.addedMemories + r.addedState) > 0 ? 'seeded' : 're-seeded (idempotent — nothing new)';
+        return ok(`Pack "${r.pack}" ${verb}. ${r.addedMemories} memories + ${r.addedState} state added.`);
+      } catch (e) { return wrapNetErr(e, 'seed_pack'); }
     }
     default:
       return err(`Unknown tool: ${name}`);
@@ -206,10 +205,6 @@ async function handleCall(name, args) {
 // ── server lifecycle ──────────────────────────────────────────────────────
 
 async function main() {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  await brain.init(DATA_DIR);
-  log(`brain initialized at ${brain.dbPath()}`);
-
   const server = new Server(
     { name: 'mrmags', version: '0.1.0' },
     {
@@ -238,7 +233,7 @@ async function main() {
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  log('Mr. Mags MCP server ready (stdio)');
+  log(`Mr. Mags MCP relay ready (stdio → ${API_BASE})`);
 }
 
 main().catch((e) => {
@@ -246,6 +241,5 @@ main().catch((e) => {
   process.exit(1);
 });
 
-// Graceful shutdown
-process.on('SIGTERM', async () => { await brain.close(); process.exit(0); });
-process.on('SIGINT', async () => { await brain.close(); process.exit(0); });
+process.on('SIGTERM', () => process.exit(0));
+process.on('SIGINT', () => process.exit(0));
