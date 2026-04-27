@@ -1,28 +1,32 @@
-# Mags v0
+# Mr. Mags
 
 A tiny tray app that gives Claude Desktop a persistent local memory via MCP.
 
-> **Working name** — final product name TBD. This is the v0 prototype shipped to one user (Mags, the BBF teacher) for real-world feedback before the public release.
+**[mrmags.org](https://mrmags.org)** · Free for teachers, forever.
+
+## The origin story
+
+Mr. Mags is named for **Mr. Jeffrey Magnano** — a high school teacher whose students call him Mr. Mags. He was the first user. We built it for him because his lesson plans, rubrics, and parent emails kept evaporating into one-shot AI chats that forgot him the moment he opened a new conversation. Now Claude remembers him.
 
 ## What it is
 
-When you install Mags on your Mac, Claude Desktop gains seven new tools that read and write a local memory database. From any conversation you can say "remember that..." or "what do you know about my classes?" and Claude will use the database transparently.
+When you install Mr. Mags on your Mac, Claude Desktop gains seven new tools that read and write a local memory database. From any conversation you can say "remember that..." or "what do you know about my classes?" and Claude will use the database transparently.
 
-The database lives on your machine at `~/Library/Application Support/Mags/brain/`. Nothing leaves the machine. Mags is a status indicator in the menu bar; the actual MCP server is spawned by Claude Desktop on demand.
+The database lives on your machine at `~/Library/Application Support/Mr. Mags/brain/`. Nothing leaves the machine. Mr. Mags is a status indicator in the menu bar; the actual MCP server is spawned by Claude Desktop on demand.
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────┐         ┌──────────────────────────────┐
-│ Claude Desktop              │         │ Mags.app (menu-bar)          │
+│ Claude Desktop              │         │ Mr. Mags.app (menu-bar)      │
 │ (anthropic.com installer)   │         │ - tray icon                  │
 └──────────────┬──────────────┘         │ - first-run welcome dialog   │
                │                        │ - auto-writes Claude config  │
                │ spawns via stdio       │ - opens data folder on click │
                ▼                        └──────────────────────────────┘
 ┌─────────────────────────────┐
-│ mags MCP server             │  reads/writes
-│ (server/index.js, Node)     │ ────────────►  ~/Library/Application Support/Mags/brain/
+│ mrmags MCP server           │  reads/writes
+│ (server/index.js, Node)     │ ────────────►  ~/Library/Application Support/Mr. Mags/brain/
 │ 7 tools: memory_*, state_*, │
 │ seed_pack                   │
 └─────────────────────────────┘
@@ -32,8 +36,8 @@ The Electron app and the MCP server **never share access to the database** — P
 
 ## Repo layout
 
-```
-mags-app/
+```text
+mrmags-app/
 ├── main.js              # Electron main process (tray, welcome, Claude config)
 ├── preload.js           # No-op for v0 (no renderer)
 ├── server/
@@ -42,16 +46,16 @@ mags-app/
 │   └── teacher.yaml     # Bundled teacher pattern pack (also at /saas/spore/seed?pack=teacher)
 ├── icon/
 │   ├── tray.png         # 16x16 placeholder
-│   └── icon.png         # placeholder (real branding lands when name is chosen)
+│   └── icon.png         # placeholder (real branding lands later)
 ├── package.json
 └── README.md
 ```
 
-## Install (Mags v0 — hand-installed by Steve)
+## Install (Mr. Mags v0 — hand-installed by Steve)
 
-1. **On Mags's Mac**, install Node.js (one-click .pkg from nodejs.org) and Claude Desktop (.dmg from anthropic.com).
-2. Build or copy `Mags.app` to `/Applications/`. (See "Build" below.)
-3. Launch Mags once. It will:
+1. **On the user's Mac**, install Node.js (one-click .pkg from nodejs.org) and Claude Desktop (.dmg from anthropic.com).
+2. Build or copy `Mr. Mags.app` to `/Applications/`. (See "Build" below.)
+3. Launch Mr. Mags once. It will:
    - Write Claude Desktop's MCP config at `~/Library/Application Support/Claude/claude_desktop_config.json`
    - Show a one-time welcome dialog
    - Settle into the menu bar with a "✓ Connected to Claude Desktop" status
@@ -69,17 +73,17 @@ Requires a Mac. Run:
 ```bash
 npm install
 npm run build:mac
-# dist/Mags-0.1.0.dmg
+# dist/Mr.\ Mags-0.1.0.dmg
 ```
 
-For v0 the build is **unsigned**. On first launch Mags will need to be opened via right-click → Open to bypass Gatekeeper. Code signing + notarization land in Phase 3.
+For v0 the build is **unsigned**. On first launch the app will need to be opened via right-click → Open to bypass Gatekeeper. Code signing + notarization land in a later phase.
 
 ### Cross-platform from non-Mac
 
 `electron-builder` cannot reliably build a signed Mac .dmg from Windows or Linux. Two options:
 
-1. **Borrow Mags's Mac at install time** — clone this repo, `npm install`, `npm run build:mac`, install the resulting `.dmg`. Honest one-time setup.
-2. **GitHub Actions macOS runner** — a workflow that triggers on tag push and produces the .dmg as an artifact. Free for public repos; $0.08/min for private. Standard pattern.
+1. **Build on the user's Mac at install time** — clone this repo, `npm install`, `npm run build:mac`, install the resulting `.dmg`. Honest one-time setup.
+2. **GitHub Actions macOS runner** — a workflow that triggers on tag push and produces the .dmg as an artifact. Free for public repos; ~$0.08/min for private. Standard pattern.
 
 ## Dev mode
 
@@ -89,9 +93,18 @@ npm start          # runs Electron with the local code
 npm run server     # runs the MCP server standalone (for piping to a test MCP client)
 ```
 
-Set `MAGS_DATA_DIR=/some/path` to override the data dir during dev.
+Set `MRMAGS_DATA_DIR=/some/path` to override the data dir during dev.
+Set `MRMAGS_SPORE_BASE=https://staging.modelreins.com` to point at staging for spore catalog.
 
-Set `MAGS_SPORE_BASE=https://staging.modelreins.com` to point at staging for spore catalog.
+## Beyond Claude Desktop (roadmap)
+
+The brain primitive (`@mediagato/brain`) is AI-tool-agnostic. The first front door is MCP for Claude Desktop because it's the easiest path. Future front doors on the roadmap:
+
+- **Browser extension** — universal memory layer for any web AI chat (claude.ai, ChatGPT, Gemini). Reads the input box, prepends relevant memory based on tags. Saves AI responses on demand.
+- **HTTPS / OpenAPI bridge** — a localhost endpoint that ChatGPT Custom GPTs and other tools can call as a "Custom Action."
+- **Remote MCP connector** — for paid Claude.ai users when Anthropic's connector framework matures.
+
+The same brain serves all of them.
 
 ## Dependencies
 

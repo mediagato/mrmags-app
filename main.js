@@ -1,10 +1,10 @@
 /**
- * Mags v0 — main process.
+ * Mr. Mags — main process.  https://mrmags.org
  *
  * Lives in the menu bar (Mac) / system tray (Win/Linux). Does three things:
  *
  *   1. On first launch, writes Claude Desktop's MCP config to spawn our
- *      bundled mags-server, then shows a one-time welcome dialog.
+ *      bundled mrmags-server, then shows a one-time welcome dialog.
  *   2. Stays running so the user has a status indicator. (The MCP server
  *      itself is spawned by Claude Desktop, not us.)
  *   3. Provides a small menu: Open data folder, About, Quit.
@@ -17,14 +17,19 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
+// Force Electron's user-data dir to land at "Mr. Mags" instead of the
+// package name "mrmags-app". Must happen before any app.getPath('userData')
+// call. Keeps display name and on-disk dir consistent across mac/win/linux.
+app.setName('Mr. Mags');
+
 let tray = null;
 
 // ── paths ─────────────────────────────────────────────────────────────────
 
 function userDataDir() {
-  // Cross-platform user data dir: Mac=~/Library/Application Support/Mags,
-  // Win=%APPDATA%/Mags, Linux=~/.config/Mags. Electron's app.getPath does
-  // exactly this once we set the productName via package.json build config.
+  // Cross-platform user data dir: Mac=~/Library/Application Support/Mr. Mags,
+  // Win=%APPDATA%/Mr. Mags, Linux=~/.config/Mr. Mags. Electron's app.getPath
+  // does exactly this once app.setName('Mr. Mags') runs (top of this file).
   return app.getPath('userData');
 }
 
@@ -68,11 +73,11 @@ function ensureClaudeConfig() {
     } catch (e) {
       // Bad JSON in the user's config? Don't overwrite. Leave alone, surface
       // via the diagnostics flow later.
-      console.error('[mags] could not parse Claude config:', e.message);
+      console.error('[mrmags] could not parse Claude config:', e.message);
       return { ok: false, reason: 'parse-error', path: cfgPath };
     }
     // One-time backup before our first edit
-    const backup = cfgPath + '.before-mags';
+    const backup = cfgPath + '.before-mrmags';
     if (!fs.existsSync(backup)) {
       try { fs.copyFileSync(cfgPath, backup); } catch {}
     }
@@ -81,11 +86,11 @@ function ensureClaudeConfig() {
   const desired = {
     command: 'node',
     args: [serverEntryPath()],
-    env: { MAGS_DATA_DIR: userDataDir() },
+    env: { MRMAGS_DATA_DIR: userDataDir() },
   };
 
   // Idempotent — only write if our entry is missing or different
-  const current = cfg.mcpServers.mags;
+  const current = cfg.mcpServers.mrmags;
   const sameEntry = current
     && current.command === desired.command
     && JSON.stringify(current.args) === JSON.stringify(desired.args)
@@ -94,7 +99,7 @@ function ensureClaudeConfig() {
     return { ok: true, reason: 'already-configured', path: cfgPath };
   }
 
-  cfg.mcpServers.mags = desired;
+  cfg.mcpServers.mrmags = desired;
   const tmp = cfgPath + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(cfg, null, 2), 'utf8');
   fs.renameSync(tmp, cfgPath);
@@ -115,7 +120,7 @@ function markFirstRunDone() {
 async function showWelcomeDialog() {
   const result = await dialog.showMessageBox({
     type: 'info',
-    title: 'Welcome to Mags',
+    title: 'Welcome to Mr. Mags',
     message: 'Claude now has a memory.',
     detail:
       'I just connected myself to Claude Desktop. From now on, every conversation you have ' +
@@ -152,18 +157,21 @@ function buildTrayMenu(configResult) {
     },
     { type: 'separator' },
     {
-      label: 'About Mags',
+      label: 'About Mr. Mags',
       click: () => {
         dialog.showMessageBox({
           type: 'info',
-          title: 'About Mags',
-          message: `Mags v${app.getVersion()}`,
+          title: 'About Mr. Mags',
+          message: `Mr. Mags v${app.getVersion()}`,
           detail:
             'A persistent memory layer for Claude Desktop. Local-first: everything you store ' +
             'lives on this Mac and never goes to a server.\n\n' +
+            'Named for Mr. Jeffrey Magnano — a high school teacher whose students call him Mr. Mags. ' +
+            'He was the first user. We built it for him because his lesson plans, rubrics, and ' +
+            'parent emails kept evaporating into one-shot AI chats. Now Claude remembers him.\n\n' +
             `Brain location: ${path.join(userDataDir(), 'brain')}\n` +
             `MCP server: ${serverEntryPath()}\n\n` +
-            'Made by MEDiAGATO. Free for teachers, forever.',
+            'Made by MEDiAGATO. Free for teachers, forever. https://mrmags.org',
           buttons: ['OK'],
         });
       },
@@ -193,12 +201,12 @@ app.whenReady().then(async () => {
     trayImage.setTemplateImage(true);
   }
   tray = new Tray(trayImage);
-  tray.setToolTip(`Mags v${app.getVersion()} — Claude memory`);
+  tray.setToolTip(`Mr. Mags v${app.getVersion()} — Claude memory`);
   tray.setContextMenu(buildTrayMenu(configResult));
 
   // Mac without icon: show as text title in the menu bar
   if (process.platform === 'darwin' && !iconFile) {
-    tray.setTitle('Mags');
+    tray.setTitle('Mr. Mags');
   }
 
   // First-run welcome dialog

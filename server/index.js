@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
- * mags MCP server — gives Claude Desktop a persistent local memory.
+ * Mr. Mags — MCP server. Gives Claude Desktop a persistent local memory.
+ *
+ * https://mrmags.org — free for teachers forever.
  *
  * Spawned by Claude Desktop via stdio. Connects to a local @mediagato/brain
  * (PGlite) database at the user's data dir. Exposes 7 tools:
@@ -11,9 +13,9 @@
  *                                                 pack from the spore catalog
  *
  * Data location:
- *   Mac:     ~/Library/Application Support/Mags/brain/
- *   Windows: %APPDATA%/Mags/brain/
- *   Linux:   ~/.local/share/mags/brain/
+ *   Mac:     ~/Library/Application Support/Mr. Mags/brain/
+ *   Windows: %APPDATA%/Mr. Mags/brain/
+ *   Linux:   ~/.local/share/Mr. Mags/brain/
  *
  * Spore seed catalog (pattern packs): https://app.modelreins.com/saas/spore/seed?pack=<id>
  */
@@ -30,23 +32,25 @@ const fs = require('fs');
 
 // ── data dir resolution ───────────────────────────────────────────────────
 
+const APP_NAME = 'Mr. Mags';
+
 function defaultDataDir() {
   const platform = process.platform;
   const home = os.homedir();
   if (platform === 'darwin') {
-    return path.join(home, 'Library', 'Application Support', 'Mags');
+    return path.join(home, 'Library', 'Application Support', APP_NAME);
   }
   if (platform === 'win32') {
-    return path.join(process.env.APPDATA || home, 'Mags');
+    return path.join(process.env.APPDATA || home, APP_NAME);
   }
-  return path.join(process.env.XDG_DATA_HOME || path.join(home, '.local', 'share'), 'mags');
+  return path.join(process.env.XDG_DATA_HOME || path.join(home, '.local', 'share'), APP_NAME);
 }
 
-const DATA_DIR = process.env.MAGS_DATA_DIR || defaultDataDir();
-const SPORE_BASE = process.env.MAGS_SPORE_BASE || 'https://app.modelreins.com';
+const DATA_DIR = process.env.MRMAGS_DATA_DIR || defaultDataDir();
+const SPORE_BASE = process.env.MRMAGS_SPORE_BASE || 'https://app.modelreins.com';
 
 // stderr-only logging so we don't pollute stdio MCP transport
-function log(...args) { process.stderr.write(`[mags-server] ${args.join(' ')}\n`); }
+function log(...args) { process.stderr.write(`[mrmags-server] ${args.join(' ')}\n`); }
 
 // ── tool definitions ──────────────────────────────────────────────────────
 
@@ -207,11 +211,11 @@ async function main() {
   log(`brain initialized at ${brain.dbPath()}`);
 
   const server = new Server(
-    { name: 'mags', version: '0.1.0' },
+    { name: 'mrmags', version: '0.1.0' },
     {
       capabilities: { tools: {} },
       instructions:
-        'Mags is a persistent memory layer for this conversation. ' +
+        'Mr. Mags is a persistent memory layer for this conversation. ' +
         'When the user says "remember that...", call memory_save. ' +
         'When the user asks "what do you know about me / my classes / etc", call memory_list and memory_recall. ' +
         'For small key/value context (current subject, grade level), use state_*. ' +
@@ -234,7 +238,7 @@ async function main() {
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  log('mags MCP server ready (stdio)');
+  log('Mr. Mags MCP server ready (stdio)');
 }
 
 main().catch((e) => {
