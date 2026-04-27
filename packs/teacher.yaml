@@ -5,8 +5,8 @@
 # calls seed_pack({pack: "teacher"}). User edits create new memories at
 # layer='instance' so the templates stay clean for re-reference.
 #
-# Source of truth: c:/CascadeProjects/mags-app/packs/teacher.yaml
-# Also served from: https://app.modelreins.com/saas/spore/seed?pack=teacher
+# Bundled with the app — also fetched fresh from modelreins.com on first seed
+# so updates ship without waiting on a new app release.
 #
 # Schema matches @mediagato/brain seedFromSpore: { state, memories, steering }
 

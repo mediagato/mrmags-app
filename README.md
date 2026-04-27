@@ -43,7 +43,7 @@ mrmags-app/
 ├── server/
 │   └── index.js         # MCP stdio server, 7 tools, wired to @mediagato/brain
 ├── packs/
-│   └── teacher.yaml     # Bundled teacher pattern pack (also at /saas/spore/seed?pack=teacher)
+│   └── teacher.yaml     # Bundled teacher pattern pack (also fetchable from modelreins.com)
 ├── icon/
 │   ├── tray.png         # 16x16 placeholder
 │   └── icon.png         # placeholder (real branding lands later)
