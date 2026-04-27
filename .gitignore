@@ -1,0 +1,9 @@
+node_modules/
+dist/
+build-output/
+*.log
+.DS_Store
+.env
+.env.*
+brain/
+data/

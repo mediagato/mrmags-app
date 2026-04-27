@@ -1,0 +1,53 @@
+{
+  "name": "mags-app",
+  "version": "0.1.0",
+  "description": "Mags v0 — a tiny tray app that gives Claude Desktop a persistent local memory via MCP. Built on @mediagato/brain.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "server": "node server/index.js",
+    "build": "electron-builder",
+    "build:mac": "electron-builder --mac --publish=never",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@mediagato/brain": "^0.1.1",
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "yaml": "^2.5.0"
+  },
+  "devDependencies": {
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.mediagato.mags",
+    "productName": "Mags",
+    "icon": "icon/icon.png",
+    "files": [
+      "main.js",
+      "preload.js",
+      "server/**/*",
+      "packs/**/*",
+      "icon/**/*",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.productivity"
+    },
+    "dmg": {
+      "title": "Mags Installer",
+      "contents": [
+        { "x": 130, "y": 220, "type": "file" },
+        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+      ]
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}

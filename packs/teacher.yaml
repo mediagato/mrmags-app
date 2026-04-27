@@ -1,0 +1,289 @@
+# Mags — Teacher Pack v0
+#
+# Starter templates and context for K-12 teachers using Claude Desktop.
+# Seeded into the local brain at layer='pattern' (templates) when a user
+# calls seed_pack({pack: "teacher"}). User edits create new memories at
+# layer='instance' so the templates stay clean for re-reference.
+#
+# Source of truth: c:/CascadeProjects/mags-app/packs/teacher.yaml
+# Also served from: https://app.modelreins.com/saas/spore/seed?pack=teacher
+#
+# Schema matches @mediagato/brain seedFromSpore: { state, memories, steering }
+
+state:
+  - key: profession
+    value: teacher
+  - key: pack_version
+    value: "1"
+  - key: cadence
+    value: semester
+  - key: tone_default
+    value: "warm but precise; college-level vocabulary used naturally; never condescending"
+
+memories:
+  # ── Planning ────────────────────────────────────────────────────────────
+  - filename: templates/lesson_plan.md
+    content: |
+      # Lesson Plan Template
+
+      **Subject / Grade:** _e.g. AP Biology, 11th_
+      **Unit:** _e.g. Cell Biology, Unit 2_
+      **Date:** _date_
+      **Length:** _45 / 60 / 90 min_
+
+      ## Learning Objectives
+      Students will be able to:
+      - _Knowledge: name / list / define / describe..._
+      - _Application: explain / use / model..._
+      - _Analysis: compare / contrast / evaluate..._
+
+      ## Standards Alignment
+      _State / NGSS / Common Core codes_
+
+      ## Materials
+      - _slides, handout, lab kit, etc._
+
+      ## Sequence
+      | Time | Activity | Notes |
+      |---|---|---|
+      | 0–5  | Hook / Warm-up | _question, image, demo_ |
+      | 5–20 | Direct instruction | _key concept_ |
+      | 20–40 | Practice / lab / discussion | _student-active_ |
+      | 40–55 | Application / problem | _stretch students_ |
+      | 55–60 | Exit ticket | _formative check_ |
+
+      ## Differentiation
+      - **Support:** _scaffolds for students needing more_
+      - **Extension:** _challenges for students ready for more_
+      - **Accommodations:** _per IEP/504 — see student notes_
+
+      ## Assessment
+      - **Formative:** _exit ticket, observation, questioning_
+      - **Summative:** _connects to upcoming quiz/test_
+
+      ## Reflection (post-lesson)
+      _What worked / didn't / change next time_
+
+  - filename: templates/unit_arc.md
+    content: |
+      # Unit Arc Template (Multi-Week)
+
+      **Unit Name:**
+      **Subject / Grade:**
+      **Duration:** _N weeks / N class periods_
+      **Driving Question:** _what should students be able to answer at the end?_
+
+      ## Anchor Standards
+      _2-3 standards this unit anchors on_
+
+      ## Week-by-Week Outline
+      | Week | Big Idea | Student Activity | Assessment |
+      |---|---|---|---|
+      | 1 | _frame the question_ | _exploration / pre-assessment_ | _diagnostic_ |
+      | 2 | _build foundational concepts_ | _direct instruction + practice_ | _formative_ |
+      | 3 | _apply / connect_ | _project / lab / case study_ | _formative_ |
+      | 4 | _synthesize_ | _summative project or test_ | _summative_ |
+
+      ## Summative Task
+      _Description of the final product or assessment_
+
+      ## Reflection Prompts (for students)
+      - _What surprised you?_
+      - _Where do you still have questions?_
+
+  # ── Assessment ──────────────────────────────────────────────────────────
+  - filename: templates/rubric.md
+    content: |
+      # Rubric Template
+
+      **Assignment:**
+      **Total Points:** _e.g. 100_
+
+      | Criteria | 4 — Exceeds | 3 — Meets | 2 — Approaching | 1 — Below | Pts |
+      |---|---|---|---|---|---|
+      | **Content Knowledge** | _accurate, deep, with extension_ | _accurate and complete_ | _mostly accurate, gaps_ | _significant errors_ | _/25_ |
+      | **Reasoning / Analysis** | _insightful, connects ideas_ | _clear, well-supported_ | _basic, surface-level_ | _unclear or missing_ | _/25_ |
+      | **Communication** | _polished, precise_ | _clear and organized_ | _understandable, some issues_ | _hard to follow_ | _/25_ |
+      | **Process / Effort** | _exceeds expectations_ | _meets expectations_ | _partial completion_ | _incomplete_ | _/25_ |
+
+      **Total:** _/100_
+
+      **Feedback:**
+      _Strengths — what to keep doing._
+      _Growth — what to work on next._
+
+  - filename: templates/grading_scale.md
+    content: |
+      # Default Grading Scale
+
+      | Letter | Range | GPA equiv. |
+      |---|---|---|
+      | A  | 93–100 | 4.0 |
+      | A− | 90–92  | 3.7 |
+      | B+ | 87–89  | 3.3 |
+      | B  | 83–86  | 3.0 |
+      | B− | 80–82  | 2.7 |
+      | C+ | 77–79  | 2.3 |
+      | C  | 73–76  | 2.0 |
+      | C− | 70–72  | 1.7 |
+      | D+ | 67–69  | 1.3 |
+      | D  | 60–66  | 1.0 |
+      | F  | < 60   | 0.0 |
+
+      _Adjust to match your district policy. Some schools use 90/80/70/60 cutoffs without +/−._
+
+  # ── Family / Stakeholder Communication ─────────────────────────────────
+  - filename: templates/parent_email.md
+    content: |
+      # Parent / Guardian Email Templates
+
+      ## Positive update
+      Subject: Quick good news about [Student]
+
+      Hi [Parent/Guardian Name],
+
+      Wanted to share something I noticed in class this week — [Student] [specific positive observation: contributed thoughtfully to the discussion of X / showed real growth on Y / helped a peer with Z]. [One-sentence why it matters.] Thanks for the support at home.
+
+      Best,
+      [Your name]
+
+      ## Concern: academic
+      Subject: Checking in about [Student]'s progress in [class]
+
+      Hi [Parent/Guardian Name],
+
+      I wanted to flag that [Student] [specific observation: missed N assignments, scored below average on the recent unit test, etc.]. I'm not worried yet, but I want to be in touch early. Here's what I'm doing on my end: [intervention]. Could we plan a quick call or email exchange about how to support them at home?
+
+      Best,
+      [Your name]
+
+      ## Concern: behavior
+      Subject: A conversation about [Student] in [class]
+
+      Hi [Parent/Guardian Name],
+
+      I'm reaching out because [specific, observable behavior — never characterizations]. I want to make sure we're working together on this. [What you have already tried.] Could we connect this week — phone, email, or in person, whatever works for you?
+
+      Best,
+      [Your name]
+
+      ## Conference follow-up
+      Subject: Thanks for the conversation about [Student]
+
+      Hi [Parent/Guardian Name],
+
+      Thank you for [meeting / call] today. To recap what we agreed:
+      - [Action item 1]
+      - [Action item 2]
+      - [Check-in date]
+
+      I'll follow up on [date]. Please reach out anytime.
+
+      Best,
+      [Your name]
+
+  - filename: templates/parent_conference_notes.md
+    content: |
+      # Parent Conference Notes Template
+
+      **Student:**
+      **Date:**
+      **Attendees:** _parents / guardians / counselor / admin / student?_
+
+      ## Pre-conference Prep
+      - **Strengths to lead with:** _2-3 specific, observable_
+      - **Concerns to raise:** _2-3, with specific evidence_
+      - **Data to bring:** _grades, work samples, assessment results_
+      - **Goals I'm proposing:** _SMART, time-bound_
+
+      ## During Conference (live notes)
+      - _What did the family share that I didn't know?_
+      - _What concerns do they have?_
+      - _What support are they asking for?_
+
+      ## Action Items
+      | Who | What | By when |
+      |---|---|---|
+      | Teacher | _e.g. weekly check-in email_ | _date_ |
+      | Family  | _e.g. homework signature sheet_ | _date_ |
+      | Student | _e.g. attend after-school help twice_ | _date_ |
+
+      ## Follow-up
+      _When and how I'll check back in._
+
+  # ── Student-Specific (IEP/504/Behavior) ────────────────────────────────
+  - filename: templates/iep_504_framing.md
+    content: |
+      # IEP / 504 Framing Notes
+
+      ## What I write goes in a permanent record
+      Write specific, observable, growth-oriented language. Avoid characterizations of the student as a person.
+
+      ## Strengths-based framing examples
+      - ✗ "Struggles with focus" → ✓ "Benefits from structured transitions and visual schedules; demonstrates strong focus during hands-on tasks"
+      - ✗ "Doesn't try" → ✓ "Engages most consistently when given choice in topic; less consistent on assigned-only work"
+      - ✗ "Disruptive" → ✓ "Communicates frustration verbally before processing; benefits from a regulated check-in routine before challenging work"
+
+      ## Common accommodation language
+      - "Extended time on assessments (1.5x typical)."
+      - "Preferential seating away from high-traffic areas."
+      - "Chunked assignments — break into 3 sub-tasks with check-ins."
+      - "Use of word processor for assignments longer than one paragraph."
+      - "Read-aloud option on assessments (excluding decoding-skill assessments)."
+      - "Reduced quantity (not quality) of practice problems on homework."
+
+      ## Progress-monitoring entry pattern
+      **Date:** _date_
+      **Goal area:** _from IEP/504_
+      **Observation:** _specific, observable behavior or work product_
+      **Data:** _quantitative if possible — accuracy %, on-task minutes, etc._
+      **Next step:** _what I will adjust on my end_
+
+  - filename: templates/classroom_management.md
+    content: |
+      # Classroom Management Log Template
+
+      ## Incident entry
+      **Date / Period:**
+      **Student(s):**
+      **Observable behavior:** _what happened, in concrete terms — not interpretations_
+      **Context:** _what was happening in class, what came before_
+      **My response:** _what I did_
+      **Student response:** _how it landed_
+      **Follow-up needed:** _y/n — by when_
+
+      ## Pattern check (review weekly)
+      - Same student appearing N times? → flag for counselor / family contact
+      - Same time of day? → consider sequence change or break
+      - Same trigger (transitions, group work, specific topic)? → adjust scaffolding
+
+      ## Intervention ladder (default)
+      1. **Proximity / non-verbal cue** — stand near, eye contact, head shake
+      2. **Private redirect** — quiet word, name the behavior, name the expectation
+      3. **Choice offer** — "you can [option A] or [option B]; which works?"
+      4. **Brief reset** — sip of water, hallway minute, breathing
+      5. **Documented conversation** — log the incident, set a follow-up
+      6. **Family contact** — phone or email; not as punishment, as partnership
+      7. **Admin / counselor referral** — when above don't shift the pattern
+
+steering:
+  - id: teacher-tone
+    name: Teacher tone
+    content: |
+      You are helping a K-12 teacher. Default to:
+      - Warm but precise. College-level vocabulary used naturally. Never condescending.
+      - Concrete examples over abstractions. Show, don't lecture.
+      - When suggesting student-facing language, keep it grade-appropriate but never dumbed down.
+      - When discussing students with concerns, never characterize the student — describe behavior, context, and evidence.
+      - Honor the teacher's time. Lead with the answer; offer detail on request.
+    mode: always
+    priority: 10
+
+  - id: teacher-privacy
+    name: Student privacy
+    content: |
+      Treat all student names, situations, and family details as sensitive. Never repeat them
+      back in unnecessary contexts. When the teacher saves student-specific notes, default to
+      first-name-only or initials in any output unless they explicitly include the full name.
+    mode: always
+    priority: 9
