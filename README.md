@@ -6,7 +6,7 @@ A tiny tray app that gives Claude Desktop a persistent local memory via MCP.
 
 ## The origin story
 
-Mr. Mags is named for **Mr. Jeffrey Magnano** — a high school teacher whose students call him Mr. Mags. He was the first user. We built it for him because his lesson plans, rubrics, and parent emails kept evaporating into one-shot AI chats that forgot him the moment he opened a new conversation. Now Claude remembers him.
+Mr. Mags is named for a school teacher whose students call him Mr. Mags. He was the first user. We built it for him because his lesson plans, rubrics, and parent emails kept evaporating into one-shot AI chats that forgot him the moment he opened a new conversation. Now Claude remembers him.
 
 ## What it is
 

@@ -129,7 +129,7 @@ async function showWelcomeDialog() {
     detail:
       'I just connected myself to Claude Desktop. From now on, every conversation you have ' +
       'with Claude carries the context of every previous one.\n\n' +
-      'Try saying:  "Remember that I teach 9th grade biology."\n' +
+      'Try saying:  "Remember that I teach biology."\n' +
       'Or:          "What do you know about my classes?"\n\n' +
       'Your data lives on this Mac and never leaves it. I sit in the menu bar — click me ' +
       'anytime to see status or open your data folder.\n\n' +
@@ -170,7 +170,7 @@ function buildTrayMenu(configResult) {
           detail:
             'A persistent memory layer for Claude Desktop. Local-first: everything you store ' +
             'lives on this Mac and never goes to a server.\n\n' +
-            'Named for Mr. Jeffrey Magnano — a high school teacher whose students call him Mr. Mags. ' +
+            'Named for a school teacher whose students call him Mr. Mags. ' +
             'He was the first user. We built it for him because his lesson plans, rubrics, and ' +
             'parent emails kept evaporating into one-shot AI chats. Now Claude remembers him.\n\n' +
             `Brain location: ${path.join(userDataDir(), 'brain')}\n` +
