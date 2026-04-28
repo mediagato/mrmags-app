@@ -31,6 +31,60 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: false
         run: npm run build:mac
       - run: ls -la dist/
+      - name: Smoke test (mount, install, launch, round-trip MCP)
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          set -e
+          DMG=$(ls dist/*.dmg | head -1)
+          echo "smoke: $DMG"
+          # Mount the DMG
+          MOUNT_OUT=$(hdiutil attach -nobrowse -noverify -quiet "$DMG")
+          VOLUME=$(echo "$MOUNT_OUT" | grep -o '/Volumes/[^ ]*' | head -1)
+          [ -n "$VOLUME" ] || { echo "FAIL: mount returned no volume"; exit 1; }
+          echo "mounted at: $VOLUME"
+          # Copy app to /Applications (the real install path)
+          rm -rf "/Applications/Mr. Mags.app"
+          cp -R "$VOLUME/Mr. Mags.app" "/Applications/"
+          hdiutil detach -quiet "$VOLUME"
+          # Strip the quarantine flag so unsigned binary launches without nag
+          xattr -dr com.apple.quarantine "/Applications/Mr. Mags.app" || true
+          # Launch the app — open(1) returns immediately, app runs in background
+          open -n "/Applications/Mr. Mags.app"
+          # Wait up to 30s for HTTP API to come up
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11436/health >/dev/null 2>&1; then
+              echo "API came up after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:11436/health || { echo "FAIL: /health never came up"; pkill -f "Mr. Mags" || true; exit 1; }
+          # Probe MCP relay the way Claude Desktop does — spawn server.js via
+          # ELECTRON_RUN_AS_NODE, send initialize + tools/list, assert memory_save
+          APP_BIN="/Applications/Mr. Mags.app/Contents/MacOS/Mr. Mags"
+          SERVER_JS="/Applications/Mr. Mags.app/Contents/Resources/app/server/index.js"
+          [ -f "$SERVER_JS" ] || { echo "FAIL: server/index.js missing at $SERVER_JS"; ls -la "/Applications/Mr. Mags.app/Contents/Resources/" || true; pkill -f "Mr. Mags"; exit 1; }
+          echo "MCP probe..."
+          PROBE_OUT=$(printf '%s\n%s\n%s\n' \
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"smoke","version":"1.0"}}}' \
+            '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+            | (ELECTRON_RUN_AS_NODE=1 MRMAGS_DATA_DIR="$HOME/Library/Application Support/Mr. Mags" "$APP_BIN" "$SERVER_JS" & sleep 4; kill $! 2>/dev/null) 2>&1 | head -50)
+          echo "$PROBE_OUT" | head -10
+          echo "$PROBE_OUT" | grep -q '"name":"memory_save"' || { echo "FAIL: memory_save not in tools/list response"; pkill -f "Mr. Mags"; exit 1; }
+          echo "✓ MCP tools list returned memory_save"
+          # Round-trip: write a memory via HTTP, read it back, assert content
+          curl -fsS -X POST http://127.0.0.1:11436/memory \
+            -H "content-type: application/json" \
+            --data '{"filename":"smoke.md","content":"smoke ran on macos GHA at '"$GITHUB_SHA"'"}' >/dev/null
+          COUNT=$(curl -fsS http://127.0.0.1:11436/health | python3 -c "import json,sys;print(json.load(sys.stdin)['memory_count'])")
+          [ "$COUNT" = "1" ] || { echo "FAIL: memory_count = $COUNT, expected 1"; pkill -f "Mr. Mags"; exit 1; }
+          echo "✓ memory write + count round-trip works"
+          # Cleanup
+          pkill -f "Mr. Mags" || true
+          sleep 1
+          echo "✓ Mac smoke test passed"
       - uses: actions/upload-artifact@v4
         with:
           name: mrmags-mac-dmg
