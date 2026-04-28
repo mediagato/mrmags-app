@@ -94,17 +94,15 @@ function renderMemories(items) {
   list.innerHTML = '';
   items.forEach(m => {
     const li = document.createElement('li');
-    li.className = 'mem-item';
-    li.dataset.filename = m.filename || '';
+    li.className = 'mem-item mem-item-static';
     const title = (m.name || m.filename || 'memory').replace(/\.md$/, '');
-    const preview = (m.description || m.content || '').replace(/\s+/g, ' ').slice(0, 110);
+    const preview = (m.description || m.content || '').replace(/\s+/g, ' ').slice(0, 220);
     const tagsHtml = (m.tags || []).map(t => `<span class="mem-tag">${escapeHtml(t)}</span>`).join('');
     li.innerHTML = `
       <div class="mem-title">${escapeHtml(title)}</div>
       ${preview ? `<div class="mem-preview">${escapeHtml(preview)}</div>` : ''}
       ${tagsHtml ? `<div class="mem-tags">${tagsHtml}</div>` : ''}
     `;
-    li.addEventListener('click', () => openMemoryModal(m));
     list.appendChild(li);
   });
 }
@@ -120,84 +118,9 @@ document.getElementById('mem-search').addEventListener('input', e => {
 
 document.getElementById('mem-refresh').addEventListener('click', loadMemories);
 
-// Memory modal
-function openMemoryModal(m) {
-  document.getElementById('mem-modal-title').textContent = (m.name || m.filename || 'memory').replace(/\.md$/, '');
-  document.getElementById('mem-modal-body').textContent = m.content || m.description || '(no content)';
-  const meta = [
-    m.type && `type: ${m.type}`,
-    m.dewey && `dewey: ${m.dewey}`,
-    (m.tags || []).length && `tags: ${(m.tags || []).join(', ')}`,
-  ].filter(Boolean).join(' · ');
-  document.getElementById('mem-modal-meta').textContent = meta || '—';
-  // Reset delete button + error banner state
-  const del = document.getElementById('mem-delete');
-  del.dataset.filename = m.filename || '';
-  del.dataset.confirming = '';
-  del.disabled = false;
-  del.textContent = 'Forget this';
-  const banner = document.getElementById('mem-modal-error');
-  if (banner) { banner.hidden = true; banner.textContent = ''; }
-  document.getElementById('mem-modal').hidden = false;
-}
-
-// Esc to close modal
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    const m = document.getElementById('mem-modal');
-    if (m && !m.hidden) m.hidden = true;
-  }
-});
-
-// Document-level delegation — any click on a [data-close] element (or its
-// children, like the × glyph inside the close button) hides the modal.
-// Robust against re-renders, cached scripts, and Electron event quirks.
-document.addEventListener('click', (e) => {
-  if (e.target.closest && e.target.closest('[data-close]')) {
-    const modal = document.getElementById('mem-modal');
-    if (modal) modal.hidden = true;
-  }
-});
-
-document.getElementById('mem-delete').addEventListener('click', async (e) => {
-  const btn = e.target;
-  const filename = btn.dataset.filename;
-  if (!filename) return;
-
-  // Two-tap confirm — first click changes the button to "Yes, forget".
-  // No native confirm() (blocks weirdly inside Electron). Click anywhere else
-  // or Cancel to bail.
-  if (btn.dataset.confirming !== 'yes') {
-    btn.dataset.confirming = 'yes';
-    btn.textContent = 'Yes, forget — click again';
-    setTimeout(() => {
-      if (btn.dataset.confirming === 'yes') {
-        btn.dataset.confirming = '';
-        btn.textContent = 'Forget this';
-      }
-    }, 4000);
-    return;
-  }
-  btn.dataset.confirming = '';
-  btn.textContent = 'Forgetting…';
-  btn.disabled = true;
-  try {
-    await api(`/memory/${encodeURIComponent(filename)}`, { method: 'DELETE' });
-    document.getElementById('mem-modal').hidden = true;
-    btn.textContent = 'Forget this';
-    btn.disabled = false;
-    loadMemories();
-    refreshStatus();
-  } catch (err) {
-    btn.textContent = 'Forget this';
-    btn.disabled = false;
-    const banner = document.getElementById('mem-modal-error');
-    if (banner) {
-      banner.textContent = `Couldn't delete: ${err.message}`;
-      banner.hidden = false;
-    }
-  }
-});
+// Memories are read-only in the UI. To forget something, talk to Claude:
+// "Forget what I said about X." — the MCP tool handles it server-side.
+// In-app delete UI was removed; it broke more than it solved.
 
 // ── Settings ───────────────────────────────────────────────────────────────
 
