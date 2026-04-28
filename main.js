@@ -55,10 +55,15 @@ function serverEntryPath() {
 }
 
 function trayIconPath() {
-  // 16x16 PNG. Placeholder for v0; replace with a designed Template image.
-  const candidate = path.join(__dirname, 'icon', 'tray.png');
-  if (fs.existsSync(candidate)) return candidate;
-  return null;
+  // Mac wants a Template image (monochrome, auto-tints for light/dark menu bar).
+  // Win/Linux use the colored chalkboard tile so it reads on any taskbar.
+  const dir = path.join(__dirname, 'icon');
+  const want = process.platform === 'darwin' ? 'trayTemplate.png' : 'tray.png';
+  const p = path.join(dir, want);
+  if (fs.existsSync(p)) return p;
+  // Fall back to anything available
+  const fallback = path.join(dir, 'tray.png');
+  return fs.existsSync(fallback) ? fallback : null;
 }
 
 const FIRST_RUN_FLAG = path.join(userDataDir(), '.first-run-done');
