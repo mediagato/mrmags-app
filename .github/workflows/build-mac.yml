@@ -35,18 +35,23 @@ jobs:
         timeout-minutes: 5
         shell: bash
         run: |
-          set -e
+          set -ex
           DMG=$(ls dist/*.dmg | head -1)
           echo "smoke: $DMG"
-          # Mount the DMG
-          MOUNT_OUT=$(hdiutil attach -nobrowse -noverify -quiet "$DMG")
-          VOLUME=$(echo "$MOUNT_OUT" | grep -o '/Volumes/[^ ]*' | head -1)
-          [ -n "$VOLUME" ] || { echo "FAIL: mount returned no volume"; exit 1; }
+          # Mount the DMG. -plist gives parseable XML output even with -nobrowse.
+          # No -quiet: we want failures to print on the runner.
+          hdiutil attach -nobrowse -noverify -plist "$DMG" > /tmp/mount.plist
+          # Extract the mount-point. Universal binary DMGs sometimes mount
+          # multiple entries; the last <string>/Volumes/...</string> is the
+          # actual filesystem root.
+          VOLUME=$(grep -o '/Volumes/[^<]*' /tmp/mount.plist | tail -1)
+          [ -n "$VOLUME" ] || { echo "FAIL: mount returned no volume"; cat /tmp/mount.plist; exit 1; }
           echo "mounted at: $VOLUME"
+          ls -la "$VOLUME"
           # Copy app to /Applications (the real install path)
           rm -rf "/Applications/Mr. Mags.app"
           cp -R "$VOLUME/Mr. Mags.app" "/Applications/"
-          hdiutil detach -quiet "$VOLUME"
+          hdiutil detach "$VOLUME" || hdiutil detach -force "$VOLUME"
           # Strip the quarantine flag so unsigned binary launches without nag
           xattr -dr com.apple.quarantine "/Applications/Mr. Mags.app" || true
           # Launch the app — open(1) returns immediately, app runs in background
