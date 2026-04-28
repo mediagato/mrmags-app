@@ -76,7 +76,7 @@
     <div class="memories-toolbar">
       <input type="search" id="mem-search" placeholder="Filter…" />
       <span class="memories-count" id="mem-count">—</span>
-      <button class="btn-light" id="mem-refresh">Refresh</button>
+      <button type="button" class="btn-light" id="mem-refresh">Refresh</button>
     </div>
     <ul class="memories-list" id="memories-list"></ul>
     <div class="memories-empty" id="memories-empty" hidden>
@@ -119,7 +119,7 @@
         <h3>Data folder</h3>
         <p id="setting-data-path">—</p>
       </div>
-      <button class="btn-light" id="open-data">Open</button>
+      <button type="button" class="btn-light" id="open-data">Open</button>
     </div>
 
     <div class="setting-row">
@@ -127,7 +127,7 @@
         <h3>Claude Desktop config</h3>
         <p>The MCP entry that wires Mr. Mags into Claude. We re-write this on every launch (idempotent).</p>
       </div>
-      <button class="btn-light" id="open-claude-cfg">Open</button>
+      <button type="button" class="btn-light" id="open-claude-cfg">Open</button>
     </div>
   </section>
 
@@ -168,12 +168,14 @@
 <div class="modal" id="mem-modal" hidden>
   <div class="modal-backdrop" data-close></div>
   <div class="modal-card">
-    <button class="modal-close" data-close aria-label="Close">×</button>
+    <button type="button" class="modal-close" data-close aria-label="Close">×</button>
     <h2 id="mem-modal-title">—</h2>
     <pre id="mem-modal-body"></pre>
     <p class="modal-meta" id="mem-modal-meta">—</p>
+    <p class="modal-error" id="mem-modal-error" hidden></p>
     <div class="modal-actions">
-      <button class="btn-danger" id="mem-delete">Forget this</button>
+      <button type="button" class="btn-light" data-close>Close</button>
+      <button type="button" class="btn-danger" id="mem-delete">Forget this</button>
     </div>
   </div>
 </div>

@@ -130,9 +130,24 @@ function openMemoryModal(m) {
     (m.tags || []).length && `tags: ${(m.tags || []).join(', ')}`,
   ].filter(Boolean).join(' · ');
   document.getElementById('mem-modal-meta').textContent = meta || '—';
-  document.getElementById('mem-delete').dataset.filename = m.filename || '';
+  // Reset delete button + error banner state
+  const del = document.getElementById('mem-delete');
+  del.dataset.filename = m.filename || '';
+  del.dataset.confirming = '';
+  del.disabled = false;
+  del.textContent = 'Forget this';
+  const banner = document.getElementById('mem-modal-error');
+  if (banner) { banner.hidden = true; banner.textContent = ''; }
   document.getElementById('mem-modal').hidden = false;
 }
+
+// Esc to close modal
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const m = document.getElementById('mem-modal');
+    if (m && !m.hidden) m.hidden = true;
+  }
+});
 
 document.querySelectorAll('[data-close]').forEach(el => {
   el.addEventListener('click', () => {
@@ -141,16 +156,42 @@ document.querySelectorAll('[data-close]').forEach(el => {
 });
 
 document.getElementById('mem-delete').addEventListener('click', async (e) => {
-  const filename = e.target.dataset.filename;
+  const btn = e.target;
+  const filename = btn.dataset.filename;
   if (!filename) return;
-  if (!confirm(`Forget "${filename}"? This can't be undone.`)) return;
+
+  // Two-tap confirm — first click changes the button to "Yes, forget".
+  // No native confirm() (blocks weirdly inside Electron). Click anywhere else
+  // or Cancel to bail.
+  if (btn.dataset.confirming !== 'yes') {
+    btn.dataset.confirming = 'yes';
+    btn.textContent = 'Yes, forget — click again';
+    setTimeout(() => {
+      if (btn.dataset.confirming === 'yes') {
+        btn.dataset.confirming = '';
+        btn.textContent = 'Forget this';
+      }
+    }, 4000);
+    return;
+  }
+  btn.dataset.confirming = '';
+  btn.textContent = 'Forgetting…';
+  btn.disabled = true;
   try {
     await api(`/memory/${encodeURIComponent(filename)}`, { method: 'DELETE' });
     document.getElementById('mem-modal').hidden = true;
+    btn.textContent = 'Forget this';
+    btn.disabled = false;
     loadMemories();
     refreshStatus();
   } catch (err) {
-    alert(`Couldn't delete: ${err.message}`);
+    btn.textContent = 'Forget this';
+    btn.disabled = false;
+    const banner = document.getElementById('mem-modal-error');
+    if (banner) {
+      banner.textContent = `Couldn't delete: ${err.message}`;
+      banner.hidden = false;
+    }
   }
 });
 

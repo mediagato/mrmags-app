@@ -468,15 +468,19 @@ a { color: inherit; text-decoration: none; }
   position: fixed;
   bottom: 0;
   right: 0;
-  height: 220px;
+  height: clamp(120px, 22vh, 200px);
   width: auto;
+  max-width: 30vw;
+  object-fit: contain;
+  object-position: bottom right;
   pointer-events: none;
-  opacity: 0.75;
-  z-index: 5;
+  opacity: 0.7;
+  z-index: 1;
   filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15));
 }
 
-@media (max-width: 900px) {
+/* Hide him on narrower windows so he doesn't fight the content. */
+@media (max-width: 1100px), (max-height: 600px) {
   .mags-corner { display: none; }
 }
 
@@ -554,8 +558,20 @@ a { color: inherit; text-decoration: none; }
   letter-spacing: 0.04em;
 }
 
+.modal-error {
+  margin: 0 0 18px;
+  padding: 10px 14px;
+  background: #fcf0ed;
+  color: #823020;
+  border: 1px solid #e6c4b8;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
 }
+
+.modal-actions button { min-width: 110px; }
