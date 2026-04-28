@@ -98,14 +98,48 @@ function renderMemories(items) {
     const title = (m.name || m.filename || 'memory').replace(/\.md$/, '');
     const preview = (m.description || m.content || '').replace(/\s+/g, ' ').slice(0, 220);
     const tagsHtml = (m.tags || []).map(t => `<span class="mem-tag">${escapeHtml(t)}</span>`).join('');
+    // Pensieve cue: a chalk-script hint with the exact phrase to say to Claude.
+    // Click the cue to copy the phrase. The memory itself is never modified
+    // by clicking — only Claude can actually drop it via the MCP tool.
+    const phrase = `Forget what I told you about ${humanize(title)}.`;
     li.innerHTML = `
       <div class="mem-title">${escapeHtml(title)}</div>
       ${preview ? `<div class="mem-preview">${escapeHtml(preview)}</div>` : ''}
       ${tagsHtml ? `<div class="mem-tags">${tagsHtml}</div>` : ''}
+      <div class="mem-cue" data-phrase="${escapeHtml(phrase)}" title="Click to copy this phrase">
+        <span class="mem-cue-prefix">say to Claude:</span>
+        <span class="mem-cue-phrase">"${escapeHtml(phrase)}"</span>
+      </div>
     `;
     list.appendChild(li);
   });
 }
+
+function humanize(slug) {
+  // "current_curriculum" → "current curriculum"
+  // "student_sam_504" → "student sam 504"
+  return String(slug || '').replace(/[_-]+/g, ' ').replace(/\.[a-z]+$/i, '').trim();
+}
+
+// Click any cue to copy its phrase. Tiny "copied" toast appears in place.
+document.addEventListener('click', async (e) => {
+  const cue = e.target.closest('.mem-cue');
+  if (!cue) return;
+  const phrase = cue.dataset.phrase;
+  if (!phrase) return;
+  try {
+    await navigator.clipboard.writeText(phrase);
+    const original = cue.innerHTML;
+    cue.innerHTML = '<span class="mem-cue-prefix">copied — paste into Claude ✓</span>';
+    cue.classList.add('mem-cue-copied');
+    setTimeout(() => {
+      cue.innerHTML = original;
+      cue.classList.remove('mem-cue-copied');
+    }, 1800);
+  } catch {
+    // Clipboard blocked — leave the phrase visible so user can manually copy
+  }
+});
 
 document.getElementById('mem-search').addEventListener('input', e => {
   const q = e.target.value.toLowerCase();
