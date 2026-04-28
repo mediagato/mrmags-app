@@ -13,6 +13,7 @@ html, body {
   background: transparent;
   font-family: "Inter", system-ui, sans-serif;
   -webkit-app-region: drag;
+  -webkit-user-select: none;
   user-select: none;
   overflow: hidden;
 }
@@ -24,39 +25,65 @@ html, body {
   background:
     radial-gradient(circle at 30% 0%, rgba(255,255,255,0.06) 0%, transparent 60%),
     linear-gradient(135deg, #2d3a2e 0%, #1f2a20 100%);
-  border-radius: 8px;
+  border-radius: 10px;
   border: 4px solid #5a3920;
   box-shadow:
     0 8px 32px rgba(0,0,0,0.35),
     inset 0 0 40px rgba(0,0,0,0.25),
     inset 0 1px 0 rgba(255,255,255,0.08);
-  padding: 16px 18px 14px;
   color: rgba(247, 246, 240, 0.94);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    "brand  brand"
+    "face   stage"
+    "face   foot";
+  padding: 12px 16px 10px;
+  gap: 4px 12px;
   overflow: hidden;
 }
 
 .brand {
+  grid-area: brand;
   font-family: "Caveat", cursive;
   font-weight: 600;
   font-size: 22px;
   line-height: 1;
   text-shadow: 0 0 1px rgba(255,255,255,0.4), 0 1px 2px rgba(0,0,0,0.25);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.body {
-  flex: 1;
+.face {
+  grid-area: face;
+  align-self: end;
+  justify-self: center;
+  width: 100%;
+  height: auto;
+  max-height: 110px;
+  object-fit: contain;
+  object-position: bottom center;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.35));
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.stage {
+  grid-area: stage;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: flex-start;
+  padding-left: 4px;
 }
 
 .count {
   font-family: "Caveat", cursive;
   font-weight: 600;
-  font-size: 56px;
+  font-size: 54px;
   line-height: 1;
   text-shadow: 0 0 1px rgba(255,255,255,0.4), 0 1px 3px rgba(0,0,0,0.3);
 }
@@ -64,17 +91,19 @@ html, body {
 .label {
   font-family: "Caveat", cursive;
   font-size: 18px;
-  margin-top: 4px;
+  margin-top: 2px;
   color: rgba(247, 246, 240, 0.7);
 }
 
 .foot {
+  grid-area: foot;
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 11px;
-  letter-spacing: 0.05em;
-  color: rgba(247, 246, 240, 0.5);
+  letter-spacing: 0.04em;
+  color: rgba(247, 246, 240, 0.55);
+  padding-left: 4px;
 }
 
 .dot {
@@ -92,46 +121,32 @@ html, body {
   -webkit-app-region: no-drag;
   background: transparent;
   border: 0;
-  color: rgba(247, 246, 240, 0.5);
+  color: rgba(247, 246, 240, 0.45);
   font-size: 16px;
   cursor: pointer;
   padding: 0 4px;
   line-height: 1;
+  font-family: inherit;
 }
-
 .close:hover { color: rgba(247, 246, 240, 0.9); }
-
-.character {
-  position: absolute;
-  bottom: -6px;
-  right: -10px;
-  height: 88px;
-  width: auto;
-  pointer-events: none;
-  opacity: 0.85;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-}
-
-.error {
-  font-size: 13px;
-  color: rgba(247, 246, 240, 0.6);
-  font-style: italic;
-}
 </style>
 </head>
 <body>
 
 <div class="widget">
-  <div class="brand">Mr. Mags</div>
-  <div class="body">
+  <div class="brand">
+    <span>Mr. Mags</span>
+    <button type="button" class="close" id="hide" title="Hide widget">×</button>
+  </div>
+  <img class="face" src="../icon/mags-character.png" alt="" aria-hidden="true" />
+  <div class="stage">
     <div class="count" id="count">—</div>
     <div class="label" id="label">memories</div>
   </div>
   <div class="foot">
     <span><span class="dot" id="dot"></span><span id="status">listening</span></span>
-    <button class="close" id="hide" title="Hide widget">×</button>
+    <span id="version-tag" style="opacity:.55"></span>
   </div>
-  <img class="character" src="../icon/mags-avatar.png" alt="" aria-hidden="true" />
 </div>
 
 <script>
@@ -142,10 +157,10 @@ async function tick() {
     const r = await fetch(`${API}/health`);
     const h = await r.json();
     document.getElementById('count').textContent = h.memory_count ?? 0;
-    document.getElementById('label').textContent =
-      (h.memory_count === 1) ? 'memory' : 'memories';
+    document.getElementById('label').textContent = (h.memory_count === 1) ? 'memory' : 'memories';
     document.getElementById('dot').style.background = '#6fbf73';
     document.getElementById('status').textContent = 'listening';
+    if (h.version) document.getElementById('version-tag').textContent = 'v' + h.version;
   } catch {
     document.getElementById('count').textContent = '—';
     document.getElementById('dot').style.background = '#c45a3d';

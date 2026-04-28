@@ -60,7 +60,7 @@ async function readJsonBody(req) {
 
 // ── route handlers ────────────────────────────────────────────────────────
 
-const APP_VERSION = '0.2.3';
+const APP_VERSION = '0.2.4';
 
 async function handleHealth(req, res) {
   let memory_count = 0;

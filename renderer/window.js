@@ -149,10 +149,14 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-document.querySelectorAll('[data-close]').forEach(el => {
-  el.addEventListener('click', () => {
-    document.getElementById('mem-modal').hidden = true;
-  });
+// Document-level delegation — any click on a [data-close] element (or its
+// children, like the × glyph inside the close button) hides the modal.
+// Robust against re-renders, cached scripts, and Electron event quirks.
+document.addEventListener('click', (e) => {
+  if (e.target.closest && e.target.closest('[data-close]')) {
+    const modal = document.getElementById('mem-modal');
+    if (modal) modal.hidden = true;
+  }
 });
 
 document.getElementById('mem-delete').addEventListener('click', async (e) => {
