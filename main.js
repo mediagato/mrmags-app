@@ -30,6 +30,117 @@ let tray = null;
 let mainWindow = null;
 let widgetWindow = null;
 
+// ── crash logging + self-healing ──────────────────────────────────────────
+// Real users will hit edge cases (PGlite lock left after crash, brain
+// corruption, port races). Two defenses: (1) every launch logs to a file
+// so when something blows up the user has something to send us, (2) startup
+// proactively scrubs known stale-state files before opening the brain.
+
+const LOG_DIR = path.join(app.getPath('userData'), 'logs');
+const LOG_FILE = path.join(LOG_DIR, 'main.log');
+
+function log(...args) {
+  const line = `[${new Date().toISOString()}] ` + args.map(a =>
+    typeof a === 'object' ? (a && a.stack ? a.stack : JSON.stringify(a)) : String(a)
+  ).join(' ') + '\n';
+  try {
+    fs.mkdirSync(LOG_DIR, { recursive: true });
+    fs.appendFileSync(LOG_FILE, line);
+  } catch {}
+  // Also stderr for development / when piped
+  try { process.stderr.write(line); } catch {}
+}
+
+// Keep the last 7 launch logs around so a flood of restarts can't bloat to disk.
+function rotateLog() {
+  try {
+    if (!fs.existsSync(LOG_FILE)) return;
+    const stat = fs.statSync(LOG_FILE);
+    if (stat.size < 256 * 1024) return;          // still small, leave alone
+    const ts = new Date().toISOString().replace(/[:.]/g, '-');
+    fs.renameSync(LOG_FILE, path.join(LOG_DIR, `main.${ts}.log`));
+    // Trim oldest beyond 7
+    const old = fs.readdirSync(LOG_DIR)
+      .filter(f => f.startsWith('main.') && f.endsWith('.log'))
+      .sort()
+      .reverse();
+    for (const f of old.slice(7)) {
+      try { fs.unlinkSync(path.join(LOG_DIR, f)); } catch {}
+    }
+  } catch {}
+}
+
+process.on('uncaughtException', (e) => {
+  log('UNCAUGHT_EXCEPTION', e && e.stack || e);
+});
+process.on('unhandledRejection', (e) => {
+  log('UNHANDLED_REJECTION', e && e.stack || e);
+});
+
+// Stale-state scrubber. PGlite leaves these behind on hard crash and refuses
+// to open the data dir until they're gone. Safe to delete: PGlite recreates
+// them on a clean open.
+function scrubStaleLocks(brainDir) {
+  const staleFiles = [
+    '.s.PGSQL.5432.lock.out',
+    '.s.PGSQL.5432.lock',
+    'postmaster.pid',
+  ];
+  let removed = 0;
+  for (const name of staleFiles) {
+    const p = path.join(brainDir, name);
+    try {
+      if (fs.existsSync(p)) {
+        fs.unlinkSync(p);
+        removed++;
+        log('scrubStaleLocks: removed', p);
+      }
+    } catch (e) {
+      log('scrubStaleLocks: failed to remove', p, e.message);
+    }
+  }
+  return removed;
+}
+
+// Try brain.init twice: clean attempt, then if it fails, quarantine the
+// brain dir and start fresh. Fresh start is non-destructive — old data goes
+// to brain.broken-<timestamp> next to the live dir for manual recovery.
+async function openBrainResilient(userData) {
+  const brainDir = path.join(userData, 'brain');
+  scrubStaleLocks(brainDir);
+  try {
+    await brain.init(userData);
+    log('brain.init OK');
+    return { ok: true, recovered: false };
+  } catch (e1) {
+    log('brain.init FAILED first attempt', e1.message);
+    // Quarantine + retry
+    const ts = new Date().toISOString().replace(/[:.]/g, '-');
+    const quarantine = path.join(userData, `brain.broken-${ts}`);
+    try {
+      if (fs.existsSync(brainDir)) {
+        fs.renameSync(brainDir, quarantine);
+        log('quarantined corrupt brain to', quarantine);
+      }
+    } catch (e2) {
+      log('failed to quarantine brain', e2.message);
+      return { ok: false, error: e1, message:
+        'Mr. Mags couldn\'t open the memory file, and couldn\'t move it aside ' +
+        'either. Check your data folder permissions.' };
+    }
+    try {
+      await brain.init(userData);
+      log('brain.init OK after quarantine');
+      return { ok: true, recovered: true, quarantine };
+    } catch (e3) {
+      log('brain.init FAILED even on fresh dir', e3.message);
+      return { ok: false, error: e3, message:
+        'Mr. Mags couldn\'t open the memory file even after starting fresh. ' +
+        'Email hello@mrmags.org with the log at:\n' + LOG_FILE };
+    }
+  }
+}
+
 // ── paths ─────────────────────────────────────────────────────────────────
 
 function userDataDir() {
@@ -331,6 +442,21 @@ function buildTrayMenu(configResult) {
       label: 'How to talk to Claude (cheat sheet)',
       click: () => shell.openExternal('https://mrmags.org/start'),
     },
+    {
+      label: 'Show log file',
+      click: () => shell.showItemInFolder(LOG_FILE),
+    },
+    {
+      label: 'Email diagnostics to Mr. Mags',
+      click: () => {
+        const subject = encodeURIComponent(`Mr. Mags v${app.getVersion()} — diagnostics`);
+        const body = encodeURIComponent(
+          `Hi,\n\nSomething went wrong with Mr. Mags. The log file is at:\n${LOG_FILE}\n\n` +
+          `Please attach it before sending. Brief description of what happened:\n\n`
+        );
+        shell.openExternal(`mailto:hello@mrmags.org?subject=${subject}&body=${body}`);
+      },
+    },
     { type: 'separator' },
     {
       label: 'Quit',
@@ -342,23 +468,43 @@ function buildTrayMenu(configResult) {
 // ── lifecycle ─────────────────────────────────────────────────────────────
 
 app.whenReady().then(async () => {
+  rotateLog();
+  log('=== app start ===', { version: app.getVersion(), platform: process.platform, userData: userDataDir() });
+
   // Hide the dock icon on Mac — we're a menu-bar-only app.
   if (process.platform === 'darwin' && app.dock) app.dock.hide();
 
-  // Open the brain (PGlite). This process holds the only writer.
-  try {
-    await brain.init(userDataDir());
-  } catch (e) {
-    dialog.showErrorBox('Mr. Mags — brain failed to open', String(e.stack || e.message));
+  // Open the brain (PGlite) with resilient retry. Scrubs stale locks,
+  // quarantines a corrupt dir + tries fresh, never just quits silently.
+  const brainResult = await openBrainResilient(userDataDir());
+  if (!brainResult.ok) {
+    dialog.showErrorBox('Mr. Mags — brain failed to open', brainResult.message);
     app.quit();
     return;
+  }
+  if (brainResult.recovered) {
+    dialog.showMessageBox({
+      type: 'warning',
+      title: 'Mr. Mags reset your memory',
+      message: 'Memory couldn\'t be read; started fresh.',
+      detail:
+        'Mr. Mags couldn\'t open the memory file from your last session — usually ' +
+        'this means it was interrupted mid-write or corrupted. Your old memories are ' +
+        'preserved at:\n\n' + brainResult.quarantine + '\n\n' +
+        'Mr. Mags is running with a fresh empty memory now. If you want help ' +
+        'recovering the old memories, email hello@mrmags.org and attach the log ' +
+        'file at:\n\n' + LOG_FILE,
+      buttons: ['OK'],
+    });
   }
 
   // Start the localhost HTTP API. Front doors (Claude Desktop's MCP relay,
   // browser extension, future tools) all hit 127.0.0.1:11436 to share state.
   try {
     await api.start();
+    log('api.start OK on 127.0.0.1:11436');
   } catch (e) {
+    log('api.start FAILED', e && e.stack || e);
     if (e.code === 'EADDRINUSE') {
       dialog.showErrorBox(
         'Mr. Mags — port 11436 already in use',
