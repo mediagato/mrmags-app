@@ -121,6 +121,84 @@ jobs:
           npx wrangler@latest r2 object put "mrmags-cdn/versions/Mr-Mags-${VERSION}.dmg" \
             --file "$DMG" --content-type application/x-apple-diskimage --remote
 
+  # GUI smoke — runs on the self-hosted Mac runner (Elizabeth's family Mac,
+  # Apple Silicon, real user session). Catches the v0.2.7 class of bug where
+  # the binary launches cleanly but the GUI surface (menu bar icon,
+  # notifications) silently fails to register. macos-latest can't catch this
+  # because GHA-hosted runners are headless — no display server means
+  # NSStatusBar items can't register at all.
+  #
+  # Gated to workflow_dispatch until the self-hosted runner is online, then
+  # flip the trigger to push for every-build coverage. See:
+  #   docs/SELF_HOSTED_MAC_RUNNER.md  — runner setup playbook
+  #   docs/SMOKE_TEST_GAPS.md         — root cause + design rationale
+  gui-smoke-mac:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: [self-hosted, macOS, ARM64, real-mac]
+    needs: build-mac
+    timeout-minutes: 10
+    steps:
+      - name: Download .dmg artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mrmags-mac-dmg
+          path: dist
+      - name: Install + GUI presence assertions
+        shell: bash
+        run: |
+          set -ex
+          DMG=$(ls dist/*.dmg | head -1)
+          # Same install dance as build-mac smoke
+          hdiutil attach -nobrowse -noverify -plist "$DMG" > /tmp/mount.plist
+          VOLUME=$(grep -o '/Volumes/[^<]*' /tmp/mount.plist | tail -1)
+          [ -n "$VOLUME" ] || { echo "FAIL: mount returned no volume"; exit 1; }
+          rm -rf "/Applications/Mr. Mags.app"
+          cp -R "$VOLUME/Mr. Mags.app" "/Applications/"
+          hdiutil detach "$VOLUME" || hdiutil detach -force "$VOLUME"
+          xattr -dr com.apple.quarantine "/Applications/Mr. Mags.app" || true
+          # Launch via open(1) — runs in user session (which the self-hosted
+          # runner has, unlike macos-latest)
+          open -n "/Applications/Mr. Mags.app"
+          # Wait for HTTP API (same as build-mac smoke)
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11436/health >/dev/null 2>&1; then
+              echo "API came up after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:11436/health || { echo "FAIL: /health never came up"; pkill -f "Mr. Mags" || true; exit 1; }
+          # Give the tray icon registration a beat to settle (electron startup
+          # is async; the StatusItem registers after main.ready)
+          sleep 5
+          # GUI assertion 1: NSStatusBar item must exist for Mr. Mags.
+          # Counts menu bar items belonging to the Mr. Mags process.
+          # Menu bar 2 in System Events == the rightmost (status) menu bar.
+          ITEM_COUNT=$(osascript -e '
+            tell application "System Events"
+              try
+                count menu bar items of menu bar 2 of (first process whose name is "Mr. Mags")
+              on error
+                return 0
+              end try
+            end tell' 2>/dev/null || echo "0")
+          [ "$ITEM_COUNT" -gt "0" ] || { echo "FAIL: Mr. Mags menu bar icon not present (count=$ITEM_COUNT)"; pkill -f "Mr. Mags" || true; exit 1; }
+          echo "✓ menu bar icon registered (items: $ITEM_COUNT)"
+          # GUI assertion 2: process is the GUI process (not just a headless
+          # background helper). LSBackgroundOnly should NOT be set on the main
+          # bundle — accessory apps register a tray icon AND have the main
+          # process running. We check the bundle's Info.plist directly.
+          PLIST="/Applications/Mr. Mags.app/Contents/Info.plist"
+          BG_ONLY=$(defaults read "$PLIST" LSUIElement 2>/dev/null || echo "0")
+          # Mr. Mags IS LSUIElement=1 by design (no Dock icon — menu bar only),
+          # but the process should still be running. We just log this for
+          # diagnostic context; the menu-bar count above is the actual gate.
+          echo "LSUIElement=$BG_ONLY (1 expected for menu-bar-only apps)"
+          # Cleanup
+          pkill -f "Mr. Mags" || true
+          sleep 1
+          echo "✓ Mac GUI smoke passed"
+
   build-windows:
     runs-on: windows-latest
     timeout-minutes: 25
