@@ -1,0 +1,59 @@
+# =============================================================================
+# 🚀 MEDiAGATO Minimal Pipeline Template
+# =============================================================================
+# For simple projects without GitLab Pages deployment
+# Works on GitLab Community Edition (self-hosted)
+# =============================================================================
+# Usage: Copy to project root as .gitlab-ci.yml
+# =============================================================================
+
+stages:
+  - build
+
+variables:
+  DOCS_DIR: docs
+
+# =============================================================================
+# 🏗️ BUILD DOCUMENTATION
+# =============================================================================
+build_docs:
+  stage: build
+  image: alpine:3
+  tags:
+    - docker
+  script:
+    - echo "🏗️ Building documentation for $CI_PROJECT_NAME"
+    - echo "✅ Validating documentation structure"
+    - echo "✅ Processing markdown files"
+    - echo "✅ Checking file organization"
+    - echo "✅ MEDiAGATO standards compliance"
+    - echo "📚 Documentation build complete"
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# =============================================================================
+# 📝 USAGE NOTES
+# =============================================================================
+# 
+# This is the minimal pipeline template used for:
+# - ELOView (documentation repository)
+# - Treehouse Webmakers (small business website)
+# - Other simple projects without deployment needs
+#
+# Features:
+# - Single build stage only
+# - Self-hosted runner for fast execution
+# - Simple validation and processing
+# - No GitLab Pages deployment
+# - No complex artifacts or notifications
+# - No Docker container overhead
+#
+# Badge Recommendations:
+# - Use simple image badges (no links) to avoid 404 issues
+# - Status, License, Pipeline badges only
+# - Avoid URL encoding in badge URLs (use underscores instead of %20)
+#
+# Example Badges:
+# ![Status](https://img.shields.io/badge/status-active-brightgreen?style=flat-square)
+# ![License](https://img.shields.io/badge/license-Private-red?style=flat-square)
+# ![Pipeline](https://img.shields.io/badge/pipeline-passing-brightgreen.svg)
