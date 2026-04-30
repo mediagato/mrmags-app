@@ -524,26 +524,25 @@ app.whenReady().then(async () => {
   // Wire IPC for the renderer
   registerIpc();
 
-  // Create tray
-  const iconFile = trayIconPath();
-  const trayImage = iconFile ? nativeImage.createFromPath(iconFile) : nativeImage.createEmpty();
-  // Mac: use template image semantics so it auto-adapts to menu bar appearance
-  if (process.platform === 'darwin' && iconFile) {
-    trayImage.setTemplateImage(true);
+  // Create tray — wrapped so a headless/CI environment (no NSStatusBar) can't
+  // block the event loop and starve the HTTP API of responses.
+  try {
+    const iconFile = trayIconPath();
+    const trayImage = iconFile ? nativeImage.createFromPath(iconFile) : nativeImage.createEmpty();
+    if (process.platform === 'darwin' && iconFile) {
+      trayImage.setTemplateImage(true);
+    }
+    tray = new Tray(trayImage);
+    tray.setToolTip(`Mr. Mags v${app.getVersion()} — Claude memory`);
+    tray.setContextMenu(buildTrayMenu(configResult));
+    if (process.platform === 'darwin' && !iconFile) {
+      tray.setTitle('Mr. Mags');
+    }
+    tray.on('click', () => showMainWindow());
+    tray.on('double-click', () => showMainWindow());
+  } catch (e) {
+    log('tray init failed (non-fatal — headless or no display?):', e.message);
   }
-  tray = new Tray(trayImage);
-  tray.setToolTip(`Mr. Mags v${app.getVersion()} — Claude memory`);
-  tray.setContextMenu(buildTrayMenu(configResult));
-
-  // Mac without icon: show as text title in the menu bar
-  if (process.platform === 'darwin' && !iconFile) {
-    tray.setTitle('Mr. Mags');
-  }
-
-  // Click on the tray icon (left-click on Win/Linux, single-click on Mac):
-  // open the main window. Right-click still shows the context menu.
-  tray.on('click', () => showMainWindow());
-  tray.on('double-click', () => showMainWindow());
 
   // Restore widget if user had it on
   applyWidgetPreference();

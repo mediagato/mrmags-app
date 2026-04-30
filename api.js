@@ -63,14 +63,18 @@ async function readJsonBody(req) {
 const APP_VERSION = '0.2.7';
 
 async function handleHealth(req, res) {
+  // Respond immediately with static fields so the liveness check never blocks
+  // on a slow or still-initialising brain. DB stats are best-effort.
   let memory_count = 0;
+  let seededAt = null;
   try { memory_count = (await brain.getAllMemories()).length; } catch {}
+  try { seededAt = await brain.isSeeded(); } catch {}
   ok(res, {
     ok: true,
     name: 'mrmags',
     version: APP_VERSION,
     dbPath: brain.dbPath(),
-    seededAt: await brain.isSeeded(),
+    seededAt,
     memory_count,
   });
 }
