@@ -524,25 +524,28 @@ app.whenReady().then(async () => {
   // Wire IPC for the renderer
   registerIpc();
 
-  // Create tray — wrapped so a headless/CI environment (no NSStatusBar) can't
-  // block the event loop and starve the HTTP API of responses.
-  try {
-    const iconFile = trayIconPath();
-    const trayImage = iconFile ? nativeImage.createFromPath(iconFile) : nativeImage.createEmpty();
-    if (process.platform === 'darwin' && iconFile) {
-      trayImage.setTemplateImage(true);
+  // Defer tray setup to the next event-loop tick so the HTTP server can start
+  // processing requests (e.g. the smoke-test /health check) before any
+  // synchronous NSStatusBar work blocks the thread on macOS.
+  setImmediate(() => {
+    try {
+      const iconFile = trayIconPath();
+      const trayImage = iconFile ? nativeImage.createFromPath(iconFile) : nativeImage.createEmpty();
+      if (process.platform === 'darwin' && iconFile) {
+        trayImage.setTemplateImage(true);
+      }
+      tray = new Tray(trayImage);
+      tray.setToolTip(`Mr. Mags v${app.getVersion()} — Claude memory`);
+      tray.setContextMenu(buildTrayMenu(configResult));
+      if (process.platform === 'darwin' && !iconFile) {
+        tray.setTitle('Mr. Mags');
+      }
+      tray.on('click', () => showMainWindow());
+      tray.on('double-click', () => showMainWindow());
+    } catch (e) {
+      log('tray init failed (non-fatal):', e.message);
     }
-    tray = new Tray(trayImage);
-    tray.setToolTip(`Mr. Mags v${app.getVersion()} — Claude memory`);
-    tray.setContextMenu(buildTrayMenu(configResult));
-    if (process.platform === 'darwin' && !iconFile) {
-      tray.setTitle('Mr. Mags');
-    }
-    tray.on('click', () => showMainWindow());
-    tray.on('double-click', () => showMainWindow());
-  } catch (e) {
-    log('tray init failed (non-fatal — headless or no display?):', e.message);
-  }
+  });
 
   // Restore widget if user had it on
   applyWidgetPreference();
