@@ -550,11 +550,13 @@ app.whenReady().then(async () => {
   // Restore widget if user had it on
   applyWidgetPreference();
 
-  // First-run welcome dialog → main window
+  // First-run welcome dialog → main window (skip in CI — no one to click OK)
   if (isFirstRun()) {
-    await showWelcomeDialog();
+    if (!process.env.CI) {
+      await showWelcomeDialog();
+      showMainWindow();
+    }
     markFirstRunDone();
-    showMainWindow();
   }
 });
 
