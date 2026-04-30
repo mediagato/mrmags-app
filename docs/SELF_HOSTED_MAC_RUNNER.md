@@ -38,43 +38,24 @@ On your laptop (not the Mac):
 
 (If Terminal isn't on the Dock, hit cmd+space and type "Terminal", press enter.)
 
-### 3. Install the runner
+### 3. One-paste install
+
+Once you have the token from step 1, paste this single block into Terminal — replace `PASTE_TOKEN_HERE` with the real value:
 
 ```bash
-mkdir -p ~/actions-runner && cd ~/actions-runner
-
-# Download the latest macOS ARM64 runner. Version may have moved on; check
-# https://github.com/actions/runner/releases for the current one and adjust.
-curl -o actions-runner-osx-arm64.tar.gz -L \
-  https://github.com/actions/runner/releases/download/v2.319.1/actions-runner-osx-arm64-2.319.1.tar.gz
-
-tar xzf ./actions-runner-osx-arm64.tar.gz
-
-# Configure — paste the token you got from step 1
-./config.sh --url https://github.com/mediagato/mrmags-app \
-            --token PASTE_TOKEN_HERE \
-            --name "elizabeth-mac" \
-            --labels self-hosted,macOS,ARM64,real-mac \
-            --unattended
+TOKEN=PASTE_TOKEN_HERE \
+  bash <(curl -fsSL https://raw.githubusercontent.com/mediagato/mrmags-app/main/scripts/setup-mac-runner.sh)
 ```
 
-When `config.sh` runs, it'll ask you to confirm the runner group (default `Default` is fine) and the work folder (`_work` is fine).
+The script downloads the latest GHA runner (currently v2.334.0), unpacks under `~/actions-runner`, configures it for `mediagato/mrmags-app` with name `elizabeth-mac` and labels `self-hosted,macOS,ARM64,real-mac`, installs as a user-mode launchd service, starts it, and prints status.
 
-### 4. Install as a service (user-mode, no sudo)
+If you'd rather see each step manually, the script is short — read it before pasting.
 
-```bash
-./svc.sh install
-./svc.sh start
-./svc.sh status
-```
-
-`status` should show: `actions.runner.mediagato-mrmags-app.elizabeth-mac (...) Active`. If not, see Troubleshooting below.
-
-### 5. Verify the runner registered
+### 4. Verify the runner registered
 
 Back on https://github.com/mediagato/mrmags-app/settings/actions/runners — `elizabeth-mac` should appear with a green dot.
 
-### 6. Set the Mac to never sleep
+### 5. Set the Mac to never sleep
 
 System Settings → Battery (or Energy) → Power Adapter → enable **Prevent automatic sleeping when display is off** and **Wake for network access**. This is per-power-source on laptops, so make sure it's set for the source the Mac actually runs on (probably "Power Adapter" if it stays plugged in).
 
