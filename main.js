@@ -418,6 +418,7 @@ function buildTrayMenu(configResult) {
     : `! Claude config: ${configResult ? configResult.reason : 'unknown'}`;
 
   return Menu.buildFromTemplate([
+    { label: `Mr. Mags v${app.getVersion()}`, enabled: false },
     { label: status, enabled: false },
     { type: 'separator' },
     {
