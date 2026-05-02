@@ -1,7 +1,7 @@
 {
   "name": "mrmags-app",
-  "version": "0.2.7",
-  "description": "Mr. Mags — a tiny tray app that gives Claude Desktop a persistent local memory via MCP. Free for teachers forever. Built on @mediagato/brain. https://mrmags.org",
+  "version": "0.2.8",
+  "description": "Mr. Mags \u00e2\u20ac\u201d a tiny tray app that gives Claude Desktop a persistent local memory via MCP. Free for teachers forever. Built on @mediagato/brain. https://mrmags.org",
   "main": "main.js",
   "homepage": "https://mrmags.org",
   "scripts": {
@@ -39,20 +39,37 @@
     ],
     "mac": {
       "target": [
-        { "target": "dmg", "arch": "universal" }
+        {
+          "target": "dmg",
+          "arch": "universal"
+        }
       ],
       "category": "public.app-category.productivity"
     },
     "dmg": {
       "title": "Mr. Mags Installer",
       "contents": [
-        { "x": 130, "y": 220, "type": "file" },
-        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+        {
+          "x": 130,
+          "y": 220,
+          "type": "file"
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
       ]
     },
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ]
     },
     "nsis": {
