@@ -60,7 +60,7 @@ async function readJsonBody(req) {
 
 // ── route handlers ────────────────────────────────────────────────────────
 
-const APP_VERSION = '0.2.7';
+const APP_VERSION = require('./package.json').version;
 
 async function handleHealth(req, res) {
   // Respond immediately with static fields so the liveness check never blocks
