@@ -22,7 +22,7 @@ set -euo pipefail
 
 REPO_OWNER="mediagato"
 REPO_NAME="mrmags-app"
-RUNNER_NAME="elizabeth-mac"
+RUNNER_NAME="${RUNNER_NAME:-elizabeth-mac}"
 RUNNER_VERSION="2.334.0"
 
 INSTALL_DIR="$HOME/actions-runner"
