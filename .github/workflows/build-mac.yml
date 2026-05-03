@@ -136,7 +136,7 @@ jobs:
   #   docs/SMOKE_TEST_GAPS.md         — root cause + design rationale
   gui-smoke-mac:
     if: github.event_name == 'workflow_dispatch'
-    runs-on: [self-hosted, macOS, ARM64, real-mac]
+    runs-on: [self-hosted, macOS, real-mac]
     needs: build-mac
     timeout-minutes: 10
     steps:
