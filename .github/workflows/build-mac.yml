@@ -153,6 +153,15 @@ jobs:
           hdiutil attach -nobrowse -noverify -plist "$DMG" > /tmp/mount.plist
           VOLUME=$(grep -o '/Volumes/[^<]*' /tmp/mount.plist | tail -1)
           [ -n "$VOLUME" ] || { echo "FAIL: mount returned no volume"; exit 1; }
+          # Kill any stale instance and wait for port 11436 to be free
+          pkill -f "Mr. Mags" || true
+          for i in $(seq 1 15); do
+            if ! curl -fsS --max-time 1 http://127.0.0.1:11436/health >/dev/null 2>&1; then
+              echo "port 11436 free after ${i}s"
+              break
+            fi
+            sleep 1
+          done
           rm -rf "/Applications/Mr. Mags.app"
           cp -R "$VOLUME/Mr. Mags.app" "/Applications/"
           hdiutil detach "$VOLUME" || hdiutil detach -force "$VOLUME"
