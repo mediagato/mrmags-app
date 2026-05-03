@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mr. Mags — Activate</title>
+<style>
+  @import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500&family=Inter:wght@300;400;500&display=swap");
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink:       #1a1a1a;
+    --ink-soft:  #4a4a4a;
+    --paper:     #fafaf7;
+    --paper-alt: #f1ede5;
+    --accent:    #8c3a2c;
+    --rule:      #e0dbd2;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--paper);
+    font-family: "Inter", -apple-system, sans-serif;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 48px 32px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .logo {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    color: var(--ink);
+    margin-bottom: 32px;
+  }
+
+  h1 {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 30px;
+    font-weight: 400;
+    line-height: 1.2;
+    color: var(--ink);
+    margin-bottom: 14px;
+  }
+
+  .sub {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+    margin-bottom: 32px;
+  }
+
+  .sub a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid var(--rule);
+    margin: 0 0 28px;
+  }
+
+  label {
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 8px;
+  }
+
+  input[type="text"] {
+    width: 100%;
+    padding: 11px 14px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    background: #fff;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.15s;
+    text-transform: uppercase;
+  }
+
+  input[type="text"]:focus {
+    border-color: var(--accent);
+  }
+
+  input[type="text"].error {
+    border-color: #c0392b;
+  }
+
+  .error-msg {
+    font-size: 13px;
+    color: #c0392b;
+    margin-top: 8px;
+    min-height: 18px;
+    line-height: 1.5;
+  }
+
+  .actions {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  button.primary {
+    padding: 10px 22px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 3px;
+    font-family: "Inter", sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  button.primary:hover { opacity: 0.88; }
+  button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  button.ghost {
+    padding: 10px 18px;
+    background: transparent;
+    color: var(--ink-soft);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    font-family: "Inter", sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+
+  button.ghost:hover { border-color: var(--ink-soft); }
+
+  .footer-links {
+    margin-top: 36px;
+    padding-top: 20px;
+    border-top: 1px solid var(--rule);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 20px;
+  }
+
+  .footer-links a {
+    font-size: 12px;
+    color: var(--ink-soft);
+    text-decoration: none;
+  }
+
+  .footer-links a:hover { color: var(--accent); }
+
+  .success-wrap {
+    display: none;
+    padding: 20px 24px;
+    background: var(--paper-alt);
+    border-radius: 6px;
+    margin-top: 8px;
+  }
+
+  .success-wrap h2 {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 24px;
+    font-weight: 400;
+    margin-bottom: 10px;
+    color: var(--ink);
+  }
+
+  .success-wrap p {
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.6;
+    margin-bottom: 16px;
+  }
+
+  .trial-badge {
+    display: inline-block;
+    background: var(--paper-alt);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-bottom: 20px;
+    font-weight: 500;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">Mr. Mags</div>
+
+  <div id="main-form">
+    <div id="trial-badge-wrap"></div>
+    <h1 id="headline">Your trial has ended.</h1>
+    <p class="sub" id="subtext">
+      Mr. Mags is $100, once, yours forever.
+      Buy at <a href="#" id="buy-link">mrmags.org</a> and paste your key below.
+      If you're a teacher, email <a href="#" id="teacher-link">hello@mrmags.org</a>
+      from your school address — I'll send a free key same day.
+    </p>
+
+    <hr />
+
+    <label for="key-input">License key</label>
+    <input
+      type="text"
+      id="key-input"
+      placeholder="MMAGS-PERP-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+      autocomplete="off"
+      spellcheck="false"
+    />
+    <div class="error-msg" id="error-msg"></div>
+
+    <div class="actions">
+      <button type="button" class="primary" id="activate-btn">Activate</button>
+      <button type="button" class="ghost" id="quit-btn">Quit Mr. Mags</button>
+    </div>
+
+    <div class="footer-links">
+      <a href="#" id="buy-link-2">Buy a license →</a>
+      <a href="#" id="teacher-link-2">Teacher? Get a free license →</a>
+      <a href="#" id="help-link">Need help?</a>
+    </div>
+  </div>
+
+  <div class="success-wrap" id="success-wrap">
+    <h2>You're all set.</h2>
+    <p>Mr. Mags is activated. This window will close in a moment.</p>
+    <button type="button" class="primary" id="continue-btn">Continue →</button>
+  </div>
+</div>
+
+<script>
+const m = window.mrmags;
+
+async function init() {
+  const info = await m.licenseInfo();
+  if (info.status === 'active_trial') {
+    const badge = document.getElementById('trial-badge-wrap');
+    badge.innerHTML = `<span class="trial-badge">${info.daysRemaining} day${info.daysRemaining === 1 ? '' : 's'} left in your trial</span>`;
+    document.getElementById('headline').textContent = 'Your trial is almost up.';
+  }
+}
+
+const openUrl = (url) => (e) => { e.preventDefault(); m.openUrl(url); };
+document.getElementById('buy-link').addEventListener('click', openUrl('https://mrmags.org/#pricing'));
+document.getElementById('buy-link-2').addEventListener('click', openUrl('https://mrmags.org/#pricing'));
+document.getElementById('teacher-link').addEventListener('click', openUrl('mailto:hello@mrmags.org?subject=Teacher license request'));
+document.getElementById('teacher-link-2').addEventListener('click', openUrl('mailto:hello@mrmags.org?subject=Teacher license request'));
+document.getElementById('help-link').addEventListener('click', openUrl('mailto:hello@mrmags.org?subject=Mr. Mags license help'));
+
+const keyInput = document.getElementById('key-input');
+const errorMsg = document.getElementById('error-msg');
+const activateBtn = document.getElementById('activate-btn');
+
+keyInput.addEventListener('input', () => {
+  keyInput.classList.remove('error');
+  errorMsg.textContent = '';
+});
+
+keyInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') activateBtn.click();
+});
+
+activateBtn.addEventListener('click', async () => {
+  const key = keyInput.value.trim();
+  if (!key) {
+    errorMsg.textContent = 'Paste your license key above.';
+    keyInput.classList.add('error');
+    return;
+  }
+  activateBtn.disabled = true;
+  activateBtn.textContent = 'Checking…';
+  errorMsg.textContent = '';
+
+  const result = await m.licenseActivate(key);
+  if (result.ok) {
+    document.getElementById('main-form').style.display = 'none';
+    document.getElementById('success-wrap').style.display = 'block';
+    setTimeout(() => m.licenseActivated(), 1800);
+  } else {
+    activateBtn.disabled = false;
+    activateBtn.textContent = 'Activate';
+    errorMsg.textContent = result.error || "That key didn't work.";
+    keyInput.classList.add('error');
+  }
+});
+
+document.getElementById('quit-btn').addEventListener('click', () => m.quit());
+document.getElementById('continue-btn').addEventListener('click', () => m.licenseActivated());
+
+init();
+</script>
+</body>
+</html>

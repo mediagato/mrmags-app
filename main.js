@@ -20,6 +20,7 @@ const fs = require('fs');
 const os = require('os');
 const brain = require('@mediagato/brain');
 const api = require('./api');
+const LicenseManager = require('./license_manager');
 
 // Force Electron's user-data dir to land at "Mr. Mags" instead of the
 // package name "mrmags-app". Must happen before any app.getPath('userData')
@@ -29,6 +30,8 @@ app.setName('Mr. Mags');
 let tray = null;
 let mainWindow = null;
 let widgetWindow = null;
+let licenseWindow = null;
+let license = null;
 
 // ── crash logging + self-healing ──────────────────────────────────────────
 // Real users will hit edge cases (PGlite lock left after crash, brain
@@ -376,6 +379,43 @@ function hideWidget() {
   }
 }
 
+function showLicenseWindow() {
+  return new Promise((resolve) => {
+    if (licenseWindow && !licenseWindow.isDestroyed()) {
+      licenseWindow.focus();
+      return;
+    }
+    licenseWindow = new BrowserWindow({
+      width: 560,
+      height: 580,
+      resizable: false,
+      minimizable: false,
+      maximizable: false,
+      title: 'Mr. Mags — Activate',
+      backgroundColor: '#fafaf7',
+      show: false,
+      autoHideMenuBar: true,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    });
+    if (process.platform !== 'darwin') licenseWindow.setMenu(null);
+    licenseWindow.loadFile(rendererPath('license.html'));
+    licenseWindow.once('ready-to-show', () => licenseWindow.show());
+    licenseWindow.on('closed', () => {
+      licenseWindow = null;
+      resolve(false);
+    });
+    // Resolved with true by the 'license:activated' IPC handler
+    ipcMain.once('license:activated-signal', () => {
+      if (licenseWindow && !licenseWindow.isDestroyed()) licenseWindow.close();
+      resolve(true);
+    });
+  });
+}
+
 async function applyWidgetPreference() {
   try {
     const row = await brain.getState('widget_enabled');
@@ -392,6 +432,22 @@ function registerIpc() {
   ipcMain.handle('app:data-path', () => userDataDir());
   ipcMain.handle('app:open-data-folder', () => shell.openPath(userDataDir()));
   ipcMain.handle('app:open-claude-config', () => shell.showItemInFolder(claudeConfigPath()));
+  ipcMain.handle('app:quit', () => { app.isQuitting = true; app.quit(); });
+  ipcMain.handle('shell:open', (_, url) => shell.openExternal(url));
+  ipcMain.handle('license:info', () => ({
+    status: license ? license.status() : 'unknown',
+    daysRemaining: license ? license.trialDaysRemaining() : 0,
+    key: license ? license.licenseKey() : null,
+    activatedAt: license ? license.activatedAt() : null,
+  }));
+  ipcMain.handle('license:activate', (_, key) => {
+    if (!license) return { ok: false, error: 'License manager not ready.' };
+    const result = license.activate(key);
+    return result;
+  });
+  ipcMain.handle('license:activated', () => {
+    ipcMain.emit('license:activated-signal');
+  });
   ipcMain.handle('widget:toggle', async (_, on) => {
     if (on) showWidget(); else hideWidget();
     try { await brain.setState?.('widget_enabled', String(!!on)); } catch {}
@@ -417,9 +473,29 @@ function buildTrayMenu(configResult) {
     ? `✓ Connected to Claude Desktop`
     : `! Claude config: ${configResult ? configResult.reason : 'unknown'}`;
 
+  const licenseItems = [];
+  if (license) {
+    const ls = license.status();
+    if (ls === 'licensed') {
+      licenseItems.push({ label: '✓ Licensed', enabled: false });
+    } else if (ls === 'active_trial') {
+      const days = license.trialDaysRemaining();
+      licenseItems.push({
+        label: `Trial — ${days} day${days === 1 ? '' : 's'} remaining`,
+        enabled: false,
+      });
+      licenseItems.push({
+        label: 'Buy a license…',
+        click: () => shell.openExternal('https://mrmags.org/#pricing'),
+      });
+    }
+    licenseItems.push({ type: 'separator' });
+  }
+
   return Menu.buildFromTemplate([
     { label: `Mr. Mags v${app.getVersion()}`, enabled: false },
     { label: status, enabled: false },
+    ...licenseItems,
     { type: 'separator' },
     {
       label: 'Open Mr. Mags…',
@@ -518,11 +594,29 @@ app.whenReady().then(async () => {
     return;
   }
 
+  // ── license check ─────────────────────────────────────────────────────
+  license = new LicenseManager(userDataDir());
+  license.ensureTrialStart();
+
+  const licenseStatus = license.status();
+  log('license status:', licenseStatus, 'daysRemaining:', license.trialDaysRemaining());
+
+  if (licenseStatus === 'expired_trial') {
+    // Must register IPC before showing the window
+    registerIpc();
+    const activated = await showLicenseWindow();
+    if (!activated) {
+      app.isQuitting = true;
+      app.quit();
+      return;
+    }
+  }
+
   // Wire Claude Desktop config (idempotent on subsequent launches)
   const configResult = ensureClaudeConfig();
 
-  // Wire IPC for the renderer
-  registerIpc();
+  // Wire IPC for the renderer (only if not already done in the paywall path)
+  if (licenseStatus !== 'expired_trial') registerIpc();
 
   // Defer tray setup to the next event-loop tick so the HTTP server can start
   // processing requests (e.g. the smoke-test /health check) before any

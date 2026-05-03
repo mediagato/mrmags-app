@@ -17,4 +17,9 @@ contextBridge.exposeInMainWorld('mrmags', {
   hideWidget: () => ipcRenderer.invoke('widget:hide'),
   getAutostart: () => ipcRenderer.invoke('app:get-autostart'),
   setAutostart: (on) => ipcRenderer.invoke('app:set-autostart', on),
+  quit: () => ipcRenderer.invoke('app:quit'),
+  openUrl: (url) => ipcRenderer.invoke('shell:open', url),
+  licenseInfo: () => ipcRenderer.invoke('license:info'),
+  licenseActivate: (key) => ipcRenderer.invoke('license:activate', key),
+  licenseActivated: () => ipcRenderer.invoke('license:activated'),
 });
