@@ -48,6 +48,9 @@ jobs:
           [ -n "$VOLUME" ] || { echo "FAIL: mount returned no volume"; cat /tmp/mount.plist; exit 1; }
           echo "mounted at: $VOLUME"
           ls -la "$VOLUME"
+          # Kill any stale instance from a previous run before overwriting
+          pkill -f "Mr. Mags" || true
+          sleep 2
           # Copy app to /Applications (the real install path)
           rm -rf "/Applications/Mr. Mags.app"
           cp -R "$VOLUME/Mr. Mags.app" "/Applications/"
