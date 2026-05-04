@@ -209,7 +209,7 @@
 
   <div id="main-form">
     <div id="trial-badge-wrap"></div>
-    <h1 id="headline">Your trial has ended.</h1>
+    <h1 id="headline">One more step.</h1>
     <p class="sub" id="subtext">
       Mr. Mags is $100, once, yours forever.
       Buy at <a href="#" id="buy-link">mrmags.org</a> and paste your key below.
@@ -257,6 +257,8 @@ async function init() {
     const badge = document.getElementById('trial-badge-wrap');
     badge.innerHTML = `<span class="trial-badge">${info.daysRemaining} day${info.daysRemaining === 1 ? '' : 's'} left in your trial</span>`;
     document.getElementById('headline').textContent = 'Your trial is almost up.';
+  } else {
+    document.getElementById('headline').textContent = 'Your trial has ended.';
   }
 }
 
