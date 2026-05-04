@@ -1,6 +1,6 @@
 {
   "name": "mrmags-app",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Mr. Mags \u2014 a tiny tray app that gives Claude Desktop a persistent local memory via MCP. Free for teachers forever. Built on @mediagato/brain. https://mrmags.org",
   "main": "main.js",
   "homepage": "https://mrmags.org",
